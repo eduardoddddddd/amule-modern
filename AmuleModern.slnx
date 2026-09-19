@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Amule/Amule.csproj" />
+    <Project Path="src/Desktop/Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Smoke/Smoke.csproj" />
+  </Folder>
+</Solution>

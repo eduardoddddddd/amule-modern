@@ -1,0 +1,9 @@
+.tools/
+.local/
+vendor/
+artifacts/
+**/bin/
+**/obj/
+.vs/
+*.user
+docs/upstream/
