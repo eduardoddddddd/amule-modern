@@ -51,7 +51,7 @@ public partial class MainWindow : Window
             EngineBadge.Text = $"●  aMule {engine.Client.ServerVersion}";
             ConnectionStatus.Text = "Motor autenticado · consultando las redes…";
             Message.Text = "Perfil aislado listo. Puedes seleccionar varias descargas para pausar, reanudar o cancelar. Al cerrar esta versión, el motor se detiene ordenadamente.";
-            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = true;
+            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
         finally { operations.Release(); }
@@ -76,6 +76,13 @@ public partial class MainWindow : Window
                     serversWindow.Show(this);
                     if (Program.ExerciseUi) await serversWindow.ExerciseUiAsync();
                 }
+                else if (Program.ShowSettings)
+                {
+                    var settingsWindow = new SettingsWindow(engine);
+                    childWindow = settingsWindow;
+                    settingsWindow.Show(this);
+                    if (Program.ExerciseUi) settingsWindow.ExerciseUi();
+                }
                 else if (Program.ExerciseUi) await ExerciseUiAsync();
             }
             catch (Exception ex) { Program.CaptureFailed = true; Message.Text = "Prueba visual fallida: " + ex.Message; }
@@ -87,13 +94,14 @@ public partial class MainWindow : Window
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
             if (childWindow != null)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI opened. Disconnected chrome verified when eD2k is down; live results covered by controlled integration." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI opened. Disconnected chrome verified when eD2k is down; live results covered by controlled integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming and tmp paths." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
                 childWindow.Close();
             }
             Close();
         }
         else if (ready && Program.ShowServers) OpenServers(this, new RoutedEventArgs());
         else if (ready && Program.ShowSearch) OpenSearch(this, new RoutedEventArgs());
+        else if (ready && Program.ShowSettings) OpenSettings(this, new RoutedEventArgs());
     }
     private async Task ExerciseUiAsync()
     {
@@ -240,7 +248,16 @@ public partial class MainWindow : Window
         await new ServersWindow(engine.Client).ShowDialog(this);
         await RefreshAsync();
     }
-    private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(engine.ProfilePath, "Incoming"));
+    private async void OpenSettings(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || closing) return;
+        timer.Stop();
+        await operations.WaitAsync();
+        try { await new SettingsWindow(engine).ShowDialog(this); }
+        finally { operations.Release(); }
+        if (ready && !closing) { timer.Start(); await RefreshAsync(); }
+    }
+    private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(engine.IncomingPath);
     private void OpenPlan(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(repository, "docs", "PLAN.md"));
     private void OpenPath(string path)
     {
@@ -252,7 +269,7 @@ public partial class MainWindow : Window
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Cierra y vuelve a abrir para reintentar.";
-        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = false;
+        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = false;
     }
     private async void WindowClosing(object? sender, WindowClosingEventArgs e)
     {

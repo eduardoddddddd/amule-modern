@@ -1,0 +1,70 @@
+using AmuleModern.Amule;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using System.Diagnostics;
+
+namespace AmuleModern.Desktop;
+
+public partial class SettingsWindow : Window
+{
+    private readonly EngineSession engine = null!;
+    private bool busy;
+    public SettingsWindow() => InitializeComponent();
+    public SettingsWindow(EngineSession engine) : this()
+    {
+        this.engine = engine;
+        IncomingInput.Text = engine.IncomingPath;
+        TempInput.Text = engine.TempPath;
+        StatusMessage.Text = UserFolders.IsIsolatedProfile(Path.GetFileName(engine.ProfilePath))
+            ? "Este perfil de prueba usa carpetas aisladas dentro de .local."
+            : $"Por defecto: {UserFolders.Incoming()}";
+    }
+    private async void BrowseIncoming(object? sender, RoutedEventArgs e) => IncomingInput.Text = await PickFolderAsync(IncomingInput.Text) ?? IncomingInput.Text;
+    private async void BrowseTemp(object? sender, RoutedEventArgs e) => TempInput.Text = await PickFolderAsync(TempInput.Text) ?? TempInput.Text;
+    private async Task<string?> PickFolderAsync(string? current)
+    {
+        var storage = StorageProvider;
+        var options = new FolderPickerOpenOptions { Title = "Elige una carpeta", AllowMultiple = false };
+        if (!string.IsNullOrWhiteSpace(current) && Directory.Exists(current))
+            options.SuggestedStartLocation = await storage.TryGetFolderFromPathAsync(current);
+        var result = await storage.OpenFolderPickerAsync(options);
+        return result.Count == 0 ? null : result[0].TryGetLocalPath();
+    }
+    private async void ApplyClicked(object? sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        busy = true; ApplyButton.IsEnabled = false;
+        StatusMessage.Text = "Deteniendo el motor y aplicando las carpetas…";
+        try
+        {
+            await engine.ApplyDirectoriesAsync(IncomingInput.Text ?? "", TempInput.Text ?? "");
+            IncomingInput.Text = engine.IncomingPath;
+            TempInput.Text = engine.TempPath;
+            StatusMessage.Text = "Motor reiniciado. Incoming: " + engine.IncomingPath;
+        }
+        catch (Exception ex) when (ex is ArgumentException or EcCommandException or IOException or TimeoutException)
+        {
+            StatusMessage.Text = ex.Message;
+        }
+        catch (Exception ex) { StatusMessage.Text = "No se pudieron aplicar las carpetas: " + ex.Message; }
+        finally { busy = false; ApplyButton.IsEnabled = true; }
+    }
+    private void OpenIncoming(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string path = IncomingInput.Text ?? "";
+            if (Directory.Exists(path)) Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) { StatusMessage.Text = ex.Message; }
+    }
+    internal void ExerciseUi()
+    {
+        if (string.IsNullOrWhiteSpace(IncomingInput.Text) || string.IsNullOrWhiteSpace(TempInput.Text))
+            throw new InvalidOperationException("Ajustes no muestra las carpetas actuales.");
+        if (UserFolders.PathsEqual(IncomingInput.Text!, TempInput.Text!))
+            throw new InvalidOperationException("Incoming y tmp no deben coincidir.");
+        StatusMessage.Text = "Prueba de interfaz: rutas de Incoming y tmp visibles.";
+    }
+}

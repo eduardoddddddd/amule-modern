@@ -4,4 +4,6 @@
 - 0.3.0: «aMule Modern — búsqueda eD2k y repo GitHub — 2026-09-20» — `e00ec0b576824f2b9f71a9bf868991f6`
 - 0.4.0: «aMule Modern — 0.4.0 selección múltiple y cancelar — 2026-09-20» — `a85d51d6cb06458ca9a0f3148eb5fce3`
 
+- 0.5.0: «aMule Modern — 0.5.0 carpetas Incoming/tmp — 2026-09-20» — `27faa32e47db4af4a108ac0914b3e43c`
+
 Libreta Codex. Los documentos completos permanecen en el repositorio.

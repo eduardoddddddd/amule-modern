@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.SettingsWindow"
+        Title="Ajustes · aMule Modern" Width="720" Height="520" MinWidth="640" MinHeight="460"
+        Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
+  <Grid Margin="28" RowDefinitions="Auto,*,Auto,Auto">
+    <StackPanel Spacing="7">
+      <TextBlock Text="Carpetas" FontSize="28" FontWeight="SemiBold" />
+      <TextBlock Text="Las descargas van a tu carpeta Descargas, no al repositorio. El perfil del motor sigue aislado en .local." FontSize="13" Foreground="#8C9DB5" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Margin="0,24,0,0" Spacing="18">
+      <StackPanel Spacing="8">
+        <TextBlock Text="DESCARGAS COMPLETADAS (INCOMING)" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
+        <Grid ColumnDefinitions="*,10,Auto">
+          <TextBox x:Name="IncomingInput" />
+          <Button Grid.Column="2" Content="Elegir…" Click="BrowseIncoming" />
+        </Grid>
+      </StackPanel>
+      <StackPanel Spacing="8">
+        <TextBlock Text="ARCHIVOS TEMPORALES (TMP)" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
+        <Grid ColumnDefinitions="*,10,Auto">
+          <TextBox x:Name="TempInput" />
+          <Button Grid.Column="2" Content="Elegir…" Click="BrowseTemp" />
+        </Grid>
+      </StackPanel>
+      <TextBlock Text="Al aplicar se detiene el motor, se actualiza amule.conf y se vuelve a arrancar. Incoming y tmp no pueden ser la misma carpeta." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" LineHeight="20" />
+    </StackPanel>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,16">
+      <Button Content="Abrir Incoming" Click="OpenIncoming" />
+      <Button x:Name="ApplyButton" Classes="primary" Content="Aplicar y reiniciar motor" Click="ApplyClicked" />
+    </StackPanel>
+    <Border Grid.Row="3" Background="#192637" CornerRadius="8" Padding="13">
+      <TextBlock x:Name="StatusMessage" Text="Revisa las rutas antes de aplicar." TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12" />
+    </Border>
+  </Grid>
+</Window>

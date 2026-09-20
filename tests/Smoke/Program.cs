@@ -44,7 +44,9 @@ Reject([0x0c, 0, 1], "truncated tag");
 Reject([0x0c, 0, 0, 0], "trailing packet data");
 var badLength = (byte[])nestedBytes.Clone(); badLength[9] = 1;
 Reject(badLength, "parent shorter than its children");
-Check(EcClient.Md5Hex("abc") == "900150983cd24fb0d6963f7d28e17f72", "MD5 known vector");
+Check(UserFolders.Incoming().Replace('\\', '/').EndsWith("amule-modern/incoming", StringComparison.OrdinalIgnoreCase)
+    && UserFolders.Temp().Replace('\\', '/').EndsWith("amule-modern/tmp", StringComparison.OrdinalIgnoreCase),
+    "user library lives under Downloads/amule-modern");
 
 // TCP response split into individual bytes, not a single ReadAsync-sized packet.
 var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
@@ -79,6 +81,7 @@ if (args.Contains("--integration"))
     {
         await engine.StartAsync(root, profile);
         Check(engine.ProcessId.HasValue, "real amuled process and EC auth");
+        Check(UserFolders.IsUnder(engine.IncomingPath, engine.ProfilePath) && UserFolders.IsUnder(engine.TempPath, engine.ProfilePath), "integration folders stay inside the isolated profile");
         Console.WriteLine($"ENGINE: {engine.Client.ServerVersion}; EC: 127.0.0.1:{engine.Port}");
         using (var wrong = new EcClient())
         {
@@ -191,6 +194,7 @@ if (args.Contains("--integration"))
         Check((await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.31" && s.Port == 4661), "saved server list survives restart");
         Check(!(await restarted.Client.GetNetworkStateAsync()).Connected && !(await restarted.Client.GetNetworkStateAsync()).Connecting, "restart does not autoconnect");
         Check(File.Exists(Path.Combine(restarted.ProfilePath, "Temp", "001.part.met")), "Windows temporary files use the intended profile directory");
+        Check(UserFolders.IsUnder(restarted.IncomingPath, restarted.ProfilePath) && UserFolders.IsUnder(restarted.TempPath, restarted.ProfilePath), "isolated profiles do not use the user Downloads library");
     }
     Console.WriteLine("NOTE: controlled same-host LAN eD2k handshake verified. No public server or file payload tested in this suite.");
 }

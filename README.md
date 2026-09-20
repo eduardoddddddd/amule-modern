@@ -2,13 +2,14 @@
 
 Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC.
 
-**Estado: incremento funcional 0.4.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k y buscar archivos. En Descargas puedes seleccionar varias filas, pausar, reanudar, cancelar incompletas o quitar completados de la lista. Kad permanece desactivado. Compartidos, ajustes, bandeja e instalador son trabajo pendiente.
+**Estado: incremento funcional 0.5.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k, buscar archivos y elegir las carpetas Incoming/tmp. Las descargas del perfil de escritorio van a tu carpeta Descargas, no al repositorio. Kad permanece desactivado. Compartidos, bandeja e instalador son trabajo pendiente.
 
 ## Qué hace hoy
 
 - **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo).
 - **Servidores:** añadir IPv4 o dominio y puerto, guardar, conectar al seleccionado y desconectar. Muestra estado eD2k (desconectado / conectando / conectado) y HighID/LowID.
 - **Buscar:** una búsqueda activa en el servidor actual o global eD2k; resultados con fuentes, filtro, selección múltiple y descarga a la cola.
+- **Ajustes:** Incoming y tmp. Por defecto `%USERPROFILE%\Downloads\amule-modern\incoming` y `tmp`. Puedes elegir otras carpetas; al aplicar se reinicia el motor.
 
 eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y conectar a mano.
 
@@ -28,17 +29,18 @@ La X cierra ordenadamente el motor en esta versión. No hay todavía funcionamie
 
 ## Datos
 
-- `.local/desktop`: perfil privado del motor de la interfaz. Incoming y Temp están dentro.
-- `.local/integration-*`: perfiles de pruebas; no se versionan.
-- `.local/capture`: perfil de comprobación visual.
+- `%USERPROFILE%\Downloads\amule-modern\incoming`: archivos terminados del perfil de escritorio.
+- `%USERPROFILE%\Downloads\amule-modern\tmp`: parciales del perfil de escritorio.
+- `.local/desktop`: perfil privado del motor (configuración, claves EC, lista de servidores). Ya no guarda Incoming/tmp.
+- `.local/integration-*` y `.local/capture`: perfiles de prueba con Incoming/Temp aislados dentro del perfil.
 - `vendor`: paquete aMule fijado y comprobado contra SHA-256 publicado.
 - `artifacts`: compilaciones, capturas e informes.
 
-Esos directorios están excluidos de Git. El perfil contiene credenciales EC y sus ACL se limitan al usuario actual en Windows. No compartirlo ni adjuntarlo a incidencias.
+Esos directorios (salvo Descargas) están excluidos de Git. El perfil contiene credenciales EC y sus ACL se limitan al usuario actual en Windows. No compartirlo ni adjuntarlo a incidencias.
 
 ## Validación
 
-`Build.ps1 -Test` comprueba el protocolo EC, autenticación, cola, pausa/reanudación de varias filas, cancelación, servidores, un handshake eD2k controlado en este equipo y el ciclo de búsqueda (término enviado, resultado decodificado, alta en la cola y detener conservando resultados). El test necesita una interfaz IPv4 privada activa y deshabilita el filtro LAN únicamente en su perfil desechable.
+`Build.ps1 -Test` comprueba el protocolo EC, autenticación, cola, pausa/reanudación de varias filas, cancelación, servidores, un handshake eD2k controlado en este equipo y el ciclo de búsqueda. Los perfiles de prueba no escriben en tu carpeta Descargas. El test necesita una interfaz IPv4 privada activa.
 
 La búsqueda y la descarga desde resultados también se han usado contra un servidor eD2k real. Eso no sustituye todavía una prueba formal de integridad (checksum independiente, pausa a mitad de una transferencia con datos y recuperación tras reinicio).
 
