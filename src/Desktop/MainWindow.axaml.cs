@@ -56,7 +56,7 @@ public partial class MainWindow : Window
             Message.Text = Program.CapturePath == null
                 ? "Perfil listo. La X oculta a la bandeja y las transferencias siguen. «Salir y detener» cierra el motor."
                 : "Perfil de captura listo. Al cerrar, el motor se detiene.";
-            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = true;
+            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = SharedButton.IsEnabled = true;
             if (Program.CapturePath == null)
             {
                 SingleInstance.Watch(link => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(link)), lifetime.Token);
@@ -94,6 +94,13 @@ public partial class MainWindow : Window
                     settingsWindow.Show(this);
                     if (Program.ExerciseUi) settingsWindow.ExerciseUi();
                 }
+                else if (Program.ShowShared)
+                {
+                    var sharedWindow = new SharedWindow(engine);
+                    childWindow = sharedWindow;
+                    sharedWindow.Show(this);
+                    if (Program.ExerciseUi) await sharedWindow.ExerciseUiAsync();
+                }
                 else if (Program.ExerciseUi) await ExerciseUiAsync();
             }
             catch (Exception ex) { Program.CaptureFailed = true; Message.Text = "Prueba visual fallida: " + ex.Message; }
@@ -105,7 +112,7 @@ public partial class MainWindow : Window
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
             if (childWindow != null)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI opened. Disconnected chrome verified when eD2k is down; live results covered by controlled integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming and tmp paths." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI opened. Disconnected chrome verified when eD2k is down; live results covered by controlled integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp and Kad controls." : Program.ShowShared ? "PASS: shared UI shows Incoming and filter." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
                 childWindow.Close();
             }
             Close();
@@ -113,6 +120,7 @@ public partial class MainWindow : Window
         else if (ready && Program.ShowServers) OpenServers(this, new RoutedEventArgs());
         else if (ready && Program.ShowSearch) OpenSearch(this, new RoutedEventArgs());
         else if (ready && Program.ShowSettings) OpenSettings(this, new RoutedEventArgs());
+        else if (ready && Program.ShowShared) OpenShared(this, new RoutedEventArgs());
     }
     private async Task ExerciseUiAsync()
     {
@@ -281,6 +289,12 @@ public partial class MainWindow : Window
         finally { operations.Release(); }
         if (ready && !quitting) { timer.Start(); await RefreshAsync(); }
     }
+    private async void OpenShared(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || quitting) return;
+        await new SharedWindow(engine).ShowDialog(this);
+        await RefreshAsync();
+    }
     private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(engine.IncomingPath);
     private void OpenPlan(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(repository, "docs", "PLAN.md"));
     private void OpenPath(string path)
@@ -293,7 +307,7 @@ public partial class MainWindow : Window
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Si el motor sigue, recarga; «Salir y detener» cierra el proceso.";
-        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = false;
+        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = SharedButton.IsEnabled = false;
     }
     private void AttachTray()
     {

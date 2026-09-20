@@ -133,6 +133,58 @@ public sealed class EngineSession : IAsyncDisposable
         });
         await StartAsync(repo, name, token);
     }
+    public async Task ApplyExtraSharedDirectoriesAsync(IReadOnlyList<string> directories, CancellationToken token = default)
+    {
+        if (string.IsNullOrEmpty(ProfilePath)) throw new InvalidOperationException("El motor no está iniciado.");
+        var unique = new List<string>();
+        foreach (string raw in directories)
+        {
+            string path = ValidateExtraShared(raw);
+            if (unique.Any(existing => UserFolders.PathsEqual(existing, path))) continue;
+            unique.Add(path);
+        }
+        if (unique.Count > 32) throw new ArgumentException("Como máximo 32 carpetas extra.");
+        WriteExplicitShared(unique);
+        await Client.ReloadSharedFilesAsync(token);
+    }
+    public IReadOnlyList<string> ExtraSharedDirectories()
+    {
+        string file = Path.Combine(ProfilePath, "shareddir-explicit.dat");
+        if (!File.Exists(file)) return [];
+        return File.ReadAllLines(file)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .Select(UserFolders.FromConfig)
+            .ToArray();
+    }
+    public string ValidateExtraShared(string path)
+    {
+        path = ValidateDirectory(path, "compartida");
+        if (!Directory.Exists(path)) throw new ArgumentException("La carpeta a compartir debe existir.");
+        if (UserFolders.PathsEqual(path, IncomingPath)) throw new ArgumentException("Incoming ya se comparte automáticamente.");
+        if (UserFolders.PathsEqual(path, TempPath) || UserFolders.IsUnder(path, TempPath) || UserFolders.IsUnder(TempPath, path))
+            throw new ArgumentException("No se comparte la carpeta de temporales.");
+        if (UserFolders.PathsEqual(path, ProfilePath) || UserFolders.IsUnder(ProfilePath, path))
+            throw new ArgumentException("No se comparte el perfil del motor ni una carpeta que lo contenga.");
+        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string programs = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if ((!string.IsNullOrEmpty(windows) && (UserFolders.PathsEqual(path, windows) || UserFolders.IsUnder(path, windows))) ||
+            (!string.IsNullOrEmpty(programs) && (UserFolders.PathsEqual(path, programs) || UserFolders.IsUnder(path, programs))))
+            throw new ArgumentException("No se pueden compartir carpetas del sistema.");
+        if (path.TrimEnd('\\', '/').Length <= 3) throw new ArgumentException("No se comparte una unidad completa.");
+        return path;
+    }
+    private void WriteExplicitShared(IReadOnlyList<string> directories)
+    {
+        var utf8 = new UTF8Encoding(false);
+        string body = string.Join("\n", directories.Select(path => Path.GetFullPath(path)));
+        if (directories.Count > 0) body += "\n";
+        // aMule 3.0.1 keeps shareddir-explicit.dat only if the path also
+        // appears in shareddir.dat; external writers must update the union.
+        File.WriteAllText(Path.Combine(ProfilePath, "shareddir-explicit.dat"), body, utf8);
+        File.WriteAllText(Path.Combine(ProfilePath, "shareddir-recursive.dat"), "", utf8);
+        File.WriteAllText(Path.Combine(ProfilePath, "shareddir.dat"), body, utf8);
+    }
     public static string ValidateDirectory(string path, string label)
     {
         path = (path ?? "").Trim();

@@ -38,3 +38,10 @@ La implementación anuncia solo servidor local o global eD2k. Kad sigue desactiv
 - https://github.com/amule-org/amule/blob/3.0.1/src/ExternalConn.cpp — un comando de partfile acepta varios hashes; EC_OP_PARTFILE_DELETE llama a `PartFile::Delete`; EC_OP_CLEAR_COMPLETED usa EC_TAG_ECID (0x000F).
 - https://github.com/amule-org/amule/blob/3.0.1/src/DownloadQueue.cpp — `ClearCompleted` solo retira de la lista de completados; no borra Incoming.
 - En detalle FULL el entero de la etiqueta 0x300 es el ECID de sesión. No se guarda entre arranques.
+
+## Compartidos y Kad — verificación de código 20/09/2026
+
+- https://github.com/amule-org/amule/blob/3.0.1/src/ExternalConn.cpp — `EC_OP_GET_SHARED_FILES` (0x10), `EC_OP_SHAREDFILES_RELOAD` (0x23), `EC_OP_KAD_START` (0x48), `EC_OP_KAD_STOP` (0x49). Kad start falla si la preferencia está desactivada.
+- https://github.com/amule-org/amule/blob/3.0.1/src/Preferences.cpp — `shareddir-explicit.dat` / `shareddir-recursive.dat` / `shareddir.dat`. Un Reload recorta las entradas explícitas que no estén también en el union `shareddir.dat`.
+- Incoming se comparte siempre. No se toca el cortafuegos al activar Kad.
+

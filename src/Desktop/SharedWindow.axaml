@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.SharedWindow"
+        Title="Compartidos · aMule Modern" Width="1040" Height="690" MinWidth="860" MinHeight="580"
+        Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
+  <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="7">
+        <TextBlock Text="Compartidos" FontSize="28" FontWeight="SemiBold" />
+        <TextBlock Text="Archivos que el motor ofrece. Incoming se comparte solo. Las carpetas extra las eliges tú." FontSize="13" Foreground="#8C9DB5" TextWrapping="Wrap" />
+      </StackPanel>
+      <Border Grid.Column="1" Background="#1B2C3B" CornerRadius="16" Padding="14,9" VerticalAlignment="Top">
+        <TextBlock x:Name="CountBadge" Text="0 archivos" Foreground="#80DBC6" FontSize="12" />
+      </Border>
+    </Grid>
+    <Border Grid.Row="1" Margin="0,22,0,16" Padding="16" Background="#192637" CornerRadius="10">
+      <Grid ColumnDefinitions="*,12,Auto,8,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Text="CARPETAS EXTRA" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
+        <TextBlock x:Name="FoldersText" Grid.Row="1" Margin="0,8,0,0" Text="Ninguna además de Incoming." FontSize="12" TextWrapping="Wrap" Foreground="#ABBAD0" />
+        <Button x:Name="AddFolderButton" Grid.Column="2" Grid.RowSpan="2" VerticalAlignment="Center" Content="Añadir carpeta…" Click="AddFolder" IsEnabled="False" />
+        <Button x:Name="RemoveFolderButton" Grid.Column="4" Grid.RowSpan="2" VerticalAlignment="Center" Content="Quitar seleccionada" Click="RemoveFolder" IsEnabled="False" />
+      </Grid>
+    </Border>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+      <TextBox x:Name="FilterInput" PlaceholderText="Filtrar por nombre…" Width="260" HorizontalAlignment="Left" TextChanged="FilterChanged" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <Button x:Name="CopyLinkButton" Content="Copiar enlace" Click="CopyLink" IsEnabled="False" />
+        <Button x:Name="OpenFolderButton" Content="Abrir carpeta" Click="OpenFolder" IsEnabled="False" />
+        <Button x:Name="ReloadButton" Content="↻  Recargar" Click="ReloadClicked" IsEnabled="False" />
+      </StackPanel>
+    </Grid>
+    <Border Grid.Row="3" BorderBrush="#263448" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+      <Grid>
+        <DataGrid x:Name="SharedGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionChanged="SelectionChanged"
+                  RowHeight="44" GridLinesVisibility="None" Background="#131F2D" BorderThickness="0" CanUserSortColumns="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="ARCHIVO" Binding="{Binding Name}" Width="*" MinWidth="180" />
+            <DataGridTextColumn Header="TAMAÑO" Binding="{Binding SizeText}" SortMemberPath="Size" Width="100" />
+            <DataGridTextColumn Header="CARPETA" Binding="{Binding FolderText}" Width="240" />
+            <DataGridTextColumn Header="PETICIONES" Binding="{Binding Requests}" Width="110" />
+            <DataGridTextColumn Header="SUBIDO" Binding="{Binding Uploaded}" SortMemberPath="Uploaded" Width="90" />
+          </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock x:Name="EmptyShared" Text="Incoming está vacío y no hay carpetas extra.&#10;Un archivo completado o una carpeta añadida aparecerá aquí tras el hash."
+                   TextAlignment="Center" LineHeight="23" Foreground="#8C9DB5" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+      </Grid>
+    </Border>
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,14,0,14">
+      <Button Content="Abrir Incoming" Click="OpenIncoming" />
+    </StackPanel>
+    <Border Grid.Row="5" Background="#192637" CornerRadius="8" Padding="13">
+      <TextBlock x:Name="StatusMessage" Text="Cargando compartidos…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12" />
+    </Border>
+  </Grid>
+</Window>

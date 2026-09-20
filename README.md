@@ -2,16 +2,17 @@
 
 Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC.
 
-**Estado: incremento funcional 0.6.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k, buscar archivos y elegir las carpetas Incoming/tmp. La X oculta a la bandeja y el motor sigue; «Salir y detener» cierra aMule. Kad permanece desactivado. Compartidos e instalador son trabajo pendiente.
+**Estado: incremento funcional 0.8.0-dev.** Puedes gestionar la cola, buscar, ver compartidos y activar Kad. La X oculta a la bandeja; «Salir y detener» cierra aMule. Instalador y límites de ancho de banda siguen pendientes.
 
 ## Qué hace hoy
 
 - **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo).
 - **Servidores:** añadir IPv4 o dominio y puerto, guardar, conectar al seleccionado y desconectar. Muestra estado eD2k (desconectado / conectando / conectado) y HighID/LowID.
 - **Buscar:** una búsqueda activa en el servidor actual o global eD2k; resultados con fuentes, filtro, selección múltiple y descarga a la cola.
-- **Ajustes:** Incoming y tmp. Por defecto `%USERPROFILE%\Downloads\amule-modern\incoming` y `tmp`. Puedes elegir otras carpetas; al aplicar se reinicia el motor.
+- **Ajustes:** Incoming, tmp y Kad. Por defecto `%USERPROFILE%\Downloads\amule-modern\incoming` y `tmp`. Activar Kad no abre el cortafuegos.
+- **Compartidos:** lista lo que el motor ofrece. Incoming se comparte solo; puedes añadir o quitar carpetas extra.
 
-eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y conectar a mano.
+eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y conectar a mano. Kad empieza desactivado.
 
 ## Arrancar
 

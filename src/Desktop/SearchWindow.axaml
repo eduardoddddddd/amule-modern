@@ -4,7 +4,7 @@
   <StackPanel Spacing="7"><TextBlock Text="Buscar archivos" FontSize="28" FontWeight="SemiBold"/><TextBlock x:Name="NetworkLabel" Text="Consultando conexión…" Foreground="#8C9DB5" FontSize="13"/></StackPanel>
   <Grid Grid.Row="1" ColumnDefinitions="*,12,190,12,Auto,8,Auto" Margin="0,24,0,16">
    <TextBox x:Name="QueryInput" PlaceholderText="Nombre del archivo…" MaxLength="512" KeyDown="QueryKeyDown"/>
-   <ComboBox x:Name="ScopeInput" Grid.Column="2" SelectedIndex="0" HorizontalAlignment="Stretch"><ComboBoxItem Content="Servidor actual"/><ComboBoxItem Content="Global eD2k"/></ComboBox>
+   <ComboBox x:Name="ScopeInput" Grid.Column="2" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="ScopeChanged"><ComboBoxItem Content="Servidor actual"/><ComboBoxItem Content="Global eD2k"/><ComboBoxItem Content="Kad"/></ComboBox>
    <Button x:Name="SearchButton" Grid.Column="4" Content="Buscar" Classes="primary" Click="SearchClicked" IsEnabled="False"/>
    <Button x:Name="StopButton" Grid.Column="6" Content="Detener" Click="StopClicked" IsEnabled="False"/>
   </Grid>

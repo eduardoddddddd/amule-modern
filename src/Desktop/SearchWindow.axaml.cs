@@ -14,7 +14,7 @@ public partial class SearchWindow : Window
     private IReadOnlyList<SearchResult> snapshot = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool busy, available, connected, searching, closed;
+    private bool busy, available, connected, kadConnected, searching, closed;
     public SearchWindow() { InitializeComponent(); ResultsGrid.ItemsSource = rows; }
     public SearchWindow(EcClient client) : this()
     {
@@ -33,7 +33,7 @@ public partial class SearchWindow : Window
     private void UpdateButtons()
     {
         if (SearchButton == null) return;
-        SearchButton.IsEnabled = available && !busy && connected;
+        SearchButton.IsEnabled = available && !busy && ((ScopeInput?.SelectedIndex ?? 0) == 2 ? kadConnected : connected);
         StopButton.IsEnabled = available && !busy && searching;
         DownloadButton.IsEnabled = available && !busy && ResultsGrid.SelectedItems.Count > 0;
     }
@@ -49,8 +49,12 @@ public partial class SearchWindow : Window
     }
     private async Task RefreshAsync()
     {
-        var network = await client.GetNetworkStateAsync(); connected = network.Connected;
-        NetworkLabel.Text = connected ? $"Servidor: {network.Server?.Name} · {network.Ed2kText}" : "Sin conexión eD2k. Conecta desde la ventana Servidores.";
+        var network = await client.GetNetworkStateAsync(); connected = network.Connected; kadConnected = network.KadConnected;
+        NetworkLabel.Text = connected
+            ? $"Servidor: {network.Server?.Name} · {network.Ed2kText}   |   Kad: {network.KadText}"
+            : kadConnected
+                ? $"Sin eD2k. Kad: {network.KadText}"
+                : "Sin conexión eD2k ni Kad. Conecta desde Servidores o activa Kad en Ajustes.";
         snapshot = await client.GetSearchResultsAsync(); ApplyFilter();
         if (!connected) searching = false;
     }
@@ -75,7 +79,7 @@ public partial class SearchWindow : Window
     }
     private async void SearchClicked(object? sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
-        await client.StartSearchAsync(QueryInput.Text ?? "", ScopeInput.SelectedIndex == 1);
+        await client.StartSearchAsync(QueryInput.Text ?? "", ScopeInput.SelectedIndex == 1, ScopeInput.SelectedIndex == 2);
         snapshot = []; rows.Clear(); searching = true;
         StatusMessage.Text = "Búsqueda enviada. Los resultados se actualizan cada dos segundos. Puedes iniciar otra búsqueda o detenerla.";
         await RefreshAsync();
@@ -90,6 +94,7 @@ public partial class SearchWindow : Window
     });
     private void QueryKeyDown(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter) SearchClicked(sender, new RoutedEventArgs()); }
     private void ResultDoubleTapped(object? sender, TappedEventArgs e) { if (DownloadButton.IsEnabled) DownloadClicked(sender, new RoutedEventArgs()); }
+    private void ScopeChanged(object? sender, SelectionChangedEventArgs e) => UpdateButtons();
     private void FilterChanged(object? sender, TextChangedEventArgs e) => ApplyFilter();
     private void SelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateButtons();
     private void ShowDownloads(object? sender, RoutedEventArgs e) => Close();

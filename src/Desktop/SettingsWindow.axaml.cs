@@ -19,6 +19,44 @@ public partial class SettingsWindow : Window
         StatusMessage.Text = UserFolders.IsIsolatedProfile(Path.GetFileName(engine.ProfilePath))
             ? "Este perfil de prueba usa carpetas aisladas dentro de .local."
             : $"Por defecto: {UserFolders.Incoming()}";
+        Opened += async (_, _) => await RefreshKadAsync();
+    }
+    private async Task RefreshKadAsync()
+    {
+        try
+        {
+            bool enabled = await engine.Client.GetKadEnabledAsync();
+            var network = await engine.Client.GetNetworkStateAsync();
+            KadStatus.Text = enabled
+                ? $"Kad {network.KadText.ToLowerInvariant()}. No se modifica el cortafuegos."
+                : "Kad está desactivado. Activarlo usa UDP; no se abre el cortafuegos desde esta app.";
+            KadEnableButton.IsEnabled = !enabled;
+            KadDisableButton.IsEnabled = enabled;
+        }
+        catch (Exception ex) { KadStatus.Text = "No se pudo leer Kad: " + ex.Message; }
+    }
+    private async void EnableKad(object? sender, RoutedEventArgs e) => await SetKadAsync(true);
+    private async void DisableKad(object? sender, RoutedEventArgs e) => await SetKadAsync(false);
+    private async Task SetKadAsync(bool enabled)
+    {
+        if (busy) return;
+        busy = true; KadEnableButton.IsEnabled = KadDisableButton.IsEnabled = false;
+        KadStatus.Text = enabled ? "Activando Kad…" : "Desactivando Kad…";
+        try
+        {
+            await engine.Client.SetKadEnabledAsync(enabled);
+            await RefreshKadAsync();
+            StatusMessage.Text = enabled
+                ? "Kad habilitado en el motor. Conectado solo si hay nodos alcanzables; no se toca el cortafuegos."
+                : "Kad desactivado. eD2k no cambia.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or EcCommandException or IOException or TimeoutException)
+        {
+            StatusMessage.Text = ex.Message;
+            await RefreshKadAsync();
+        }
+        catch (Exception ex) { StatusMessage.Text = "No se pudo cambiar Kad: " + ex.Message; }
+        finally { busy = false; }
     }
     private async void BrowseIncoming(object? sender, RoutedEventArgs e) => IncomingInput.Text = await PickFolderAsync(IncomingInput.Text) ?? IncomingInput.Text;
     private async void BrowseTemp(object? sender, RoutedEventArgs e) => TempInput.Text = await PickFolderAsync(TempInput.Text) ?? TempInput.Text;
@@ -65,6 +103,7 @@ public partial class SettingsWindow : Window
             throw new InvalidOperationException("Ajustes no muestra las carpetas actuales.");
         if (UserFolders.PathsEqual(IncomingInput.Text!, TempInput.Text!))
             throw new InvalidOperationException("Incoming y tmp no deben coincidir.");
-        StatusMessage.Text = "Prueba de interfaz: rutas de Incoming y tmp visibles.";
+        if (KadStatus == null || KadEnableButton == null) throw new InvalidOperationException("Ajustes no muestra el control de Kad.");
+        StatusMessage.Text = "Prueba de interfaz: rutas de Incoming y tmp visibles, control Kad presente.";
     }
 }

@@ -9,6 +9,7 @@ internal static class Program
     public static bool ShowServers { get; private set; }
     public static bool ShowSearch { get; private set; }
     public static bool ShowSettings { get; private set; }
+    public static bool ShowShared { get; private set; }
     public static string? ConnectServer { get; private set; }
     public static string? StartupLink { get; private set; }
     public static bool CaptureFailed { get; set; }
@@ -21,6 +22,7 @@ internal static class Program
         ShowServers = args.Contains("--servers");
         ShowSearch = args.Contains("--search");
         ShowSettings = args.Contains("--settings");
+        ShowShared = args.Contains("--shared");
         int server = Array.IndexOf(args, "--connect-server");
         if (server >= 0 && server + 1 < args.Length) ConnectServer = args[server + 1];
         string? ed2k = args.FirstOrDefault(a => a.StartsWith("ed2k://", StringComparison.OrdinalIgnoreCase));

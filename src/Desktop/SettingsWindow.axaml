@@ -1,5 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.SettingsWindow"
-        Title="Ajustes · aMule Modern" Width="720" Height="520" MinWidth="640" MinHeight="460"
+        Title="Ajustes · aMule Modern" Width="720" Height="640" MinWidth="640" MinHeight="560"
         Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
   <Grid Margin="28" RowDefinitions="Auto,*,Auto,Auto">
     <StackPanel Spacing="7">
@@ -22,6 +22,14 @@
         </Grid>
       </StackPanel>
       <TextBlock Text="Al aplicar se detiene el motor, se actualiza amule.conf y se vuelve a arrancar. Incoming y tmp no pueden ser la misma carpeta." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" LineHeight="20" />
+      <StackPanel Spacing="8">
+        <TextBlock Text="RED KAD" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
+        <TextBlock x:Name="KadStatus" Text="Kad está desactivado. No se abre el cortafuegos." FontSize="12" Foreground="#ABBAD0" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button x:Name="KadEnableButton" Content="Activar Kad" Click="EnableKad" />
+          <Button x:Name="KadDisableButton" Content="Desactivar Kad" Click="DisableKad" />
+        </StackPanel>
+      </StackPanel>
     </StackPanel>
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,16">
       <Button Content="Abrir Incoming" Click="OpenIncoming" />

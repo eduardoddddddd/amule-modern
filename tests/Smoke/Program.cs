@@ -77,6 +77,8 @@ if (args.Contains("--integration"))
     string profile = "integration-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
     const string hash = "A448017AAF21D8525FC10AE87AA6729D";
     const string link = "ed2k://|file|amule-modern-test-abc.txt|3|A448017AAF21D8525FC10AE87AA6729D|/";
+    const string incomingShare = "amule-modern-share-in.txt";
+    string extraDir = Path.Combine(root, ".local", profile, "share-extra");
     await using (var engine = new EngineSession())
     {
         await engine.StartAsync(root, profile);
@@ -91,6 +93,38 @@ if (args.Contains("--integration"))
             Check(rejected, "real engine rejects wrong password");
         }
         Check((await engine.Client.GetDownloadsAsync()).Count == 0, "isolated empty queue");
+        Check((await engine.Client.GetSharedFilesAsync()).Count == 0, "isolated empty shared list");
+        File.WriteAllText(Path.Combine(engine.IncomingPath, incomingShare), "amule-modern-share-incoming-payload");
+        await engine.Client.ReloadSharedFilesAsync();
+        bool incomingShared = false;
+        for (int i = 0; i < 40; i++)
+        {
+            incomingShared = (await engine.Client.GetSharedFilesAsync()).Any(f => f.Name == incomingShare);
+            if (incomingShared) break;
+            await Task.Delay(250);
+        }
+        Check(incomingShared, "incoming file appears in shared list after reload");
+        Directory.CreateDirectory(extraDir);
+        File.WriteAllText(Path.Combine(extraDir, "amule-modern-share-extra.txt"), "xyz");
+        await engine.ApplyExtraSharedDirectoriesAsync([extraDir]);
+        Check(engine.ExtraSharedDirectories().Any(d => UserFolders.PathsEqual(d, extraDir)), "extra shared directory persisted");
+        bool extraShared = false;
+        for (int i = 0; i < 40; i++)
+        {
+            extraShared = (await engine.Client.GetSharedFilesAsync()).Any(f => f.Name == "amule-modern-share-extra.txt");
+            if (extraShared) break;
+            await Task.Delay(250);
+        }
+        Check(extraShared, "extra folder file appears in shared list");
+        bool rejectedIncoming = false, rejectedTemp = false, rejectedProfile = false;
+        try { engine.ValidateExtraShared(engine.IncomingPath); } catch (ArgumentException) { rejectedIncoming = true; }
+        try { engine.ValidateExtraShared(engine.TempPath); } catch (ArgumentException) { rejectedTemp = true; }
+        try { engine.ValidateExtraShared(engine.ProfilePath); } catch (ArgumentException) { rejectedProfile = true; }
+        Check(rejectedIncoming && rejectedTemp && rejectedProfile, "reject Incoming, Temp and the engine profile as extra shares");
+        await engine.ApplyExtraSharedDirectoriesAsync([]);
+        Check(!engine.ExtraSharedDirectories().Any(d => UserFolders.PathsEqual(d, extraDir)), "removing extra shared directory");
+        Check(!(await engine.Client.GetKadEnabledAsync()) && !(await engine.Client.GetNetworkStateAsync()).KadRunning, "Kad starts disabled");
+        Check((await engine.Client.GetDownloadsAsync()).Count == 0, "sharing does not enqueue downloads");
         await engine.Client.AddLinkAsync(link);
         var downloads = await engine.Client.GetDownloadsAsync();
         Check(downloads.Any(d => d.Hash == hash && d.Size == 3), "add link and read real queue");
@@ -117,6 +151,19 @@ if (args.Contains("--integration"))
         var connectionPrefs = prefs.Find(0x1300)!;
         Check(connectionPrefs.Find(0x130d) != null && connectionPrefs.Find(0x130e) == null && connectionPrefs.Find(0x130b) == null,
             "enable eD2k without enabling Kad or autoconnect");
+        await engine.Client.SetKadEnabledAsync(true);
+        Check(await engine.Client.GetKadEnabledAsync(), "Kad preference enabled");
+        NetworkState? kadState = null;
+        for (int i = 0; i < 20; i++)
+        {
+            kadState = await engine.Client.GetNetworkStateAsync();
+            if (kadState.KadRunning || kadState.KadConnected) break;
+            await Task.Delay(100);
+        }
+        Check(kadState is { KadRunning: true } or { KadConnected: true }, "Kad start leaves the network running");
+        await engine.Client.SetKadEnabledAsync(false);
+        Check(!(await engine.Client.GetKadEnabledAsync()), "Kad preference disabled again");
+        Check(!(await engine.Client.GetNetworkStateAsync()).KadRunning && !(await engine.Client.GetNetworkStateAsync()).KadConnected, "Kad stop leaves the network inactive");
         var testServer = await engine.Client.AddServerAsync("203.0.113.31", "4661", "Persistencia de servidor");
         Check((await engine.Client.GetServersAsync()).Any(s => s.Endpoint == testServer.Endpoint && s.Name == testServer.Name), "add and list real saved server");
         await engine.Client.AddServerAsync("203.0.113.31", "4661", "Duplicate");
@@ -197,6 +244,9 @@ if (args.Contains("--integration"))
         Check(!(await restarted.Client.GetDownloadsAsync()).Any(d => d.Hash == "C448017AAF21D8525FC10AE87AA6729D"), "cancelled download does not return after restart");
         Check((await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.31" && s.Port == 4661), "saved server list survives restart");
         Check(!(await restarted.Client.GetNetworkStateAsync()).Connected && !(await restarted.Client.GetNetworkStateAsync()).Connecting, "restart does not autoconnect");
+        Check(!(await restarted.Client.GetKadEnabledAsync()) && !(await restarted.Client.GetNetworkStateAsync()).KadRunning, "restart keeps Kad disabled");
+        Check((await restarted.Client.GetSharedFilesAsync()).Any(f => f.Name == incomingShare), "incoming shared file survives restart");
+        Check(!restarted.ExtraSharedDirectories().Any(d => UserFolders.PathsEqual(d, extraDir)), "removed extra share does not return after restart");
         Check(File.Exists(Path.Combine(restarted.ProfilePath, "Temp", "001.part.met")), "Windows temporary files use the intended profile directory");
         Check(UserFolders.IsUnder(restarted.IncomingPath, restarted.ProfilePath) && UserFolders.IsUnder(restarted.TempPath, restarted.ProfilePath), "isolated profiles do not use the user Downloads library");
     }

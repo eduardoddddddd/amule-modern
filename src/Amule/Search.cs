@@ -14,13 +14,18 @@ public sealed record SearchResult(string Hash, string Name, ulong Size, ulong So
 
 public sealed partial class EcClient
 {
-    public async Task StartSearchAsync(string query, bool global = false, CancellationToken token = default)
+    public async Task StartSearchAsync(string query, bool global = false, bool kad = false, CancellationToken token = default)
     {
         query = query.Trim();
         if (query.Length is < 1 or > 512 || query.Any(char.IsControl)) throw new ArgumentException("Escribe un término de búsqueda de hasta 512 caracteres.");
-        if (!(await GetNetworkStateAsync(token)).Connected) throw new ArgumentException("Conecta primero a un servidor desde Servidores.");
+        var network = await GetNetworkStateAsync(token);
+        if (kad)
+        {
+            if (!network.KadConnected) throw new ArgumentException("Kad no está conectado. Actívalo en Ajustes y espera a que el estado sea Conectado.");
+        }
+        else if (!network.Connected) throw new ArgumentException("Conecta primero a un servidor desde Servidores.");
         await RequestAsync(new(0x27), token);
-        var type = EcTag.Integer(0x701, global ? 1ul : 0ul, 4);
+        var type = EcTag.Integer(0x701, kad ? 2ul : global ? 1ul : 0ul, 4);
         await RequestAsync(new(0x26, type with { Children = [EcTag.Text(0x702, query), EcTag.Text(0x705, "")] }), token);
     }
     public async Task<IReadOnlyList<SearchResult>> GetSearchResultsAsync(CancellationToken token = default)
