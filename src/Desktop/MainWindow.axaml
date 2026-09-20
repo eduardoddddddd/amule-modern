@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AmuleModern.Desktop.MainWindow"
+        Icon="avares://AmuleModern/Assets/amule-modern.ico"
         Title="aMule Modern" Width="1280" Height="820" MinWidth="1040" MinHeight="640"
         Background="{DynamicResource App.Bg}" WindowStartupLocation="CenterScreen">
   <Grid ColumnDefinitions="232,*" RowDefinitions="*,36">
@@ -9,9 +10,9 @@
       <Grid RowDefinitions="Auto,*,Auto" Margin="16,24,14,16">
         <StackPanel Spacing="18">
           <StackPanel Orientation="Horizontal" Spacing="12">
-            <Border Background="{DynamicResource App.Accent}" CornerRadius="10" Width="36" Height="36">
-              <TextBlock Text="m" Foreground="{DynamicResource App.AccentFg}" FontSize="22" FontWeight="Bold"
-                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border CornerRadius="10" Width="36" Height="36" ClipToBounds="True">
+              <Image Source="avares://AmuleModern/Assets/amule-modern.png" Stretch="UniformToFill"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"/>
             </Border>
             <StackPanel VerticalAlignment="Center" Spacing="1">
               <TextBlock Text="aMule" FontSize="18" FontWeight="SemiBold"/>

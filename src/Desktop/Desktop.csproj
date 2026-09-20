@@ -4,9 +4,11 @@
     <AssemblyName>AmuleModern</AssemblyName>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/amule-modern.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
     <ProjectReference Include="../Amule/Amule.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
