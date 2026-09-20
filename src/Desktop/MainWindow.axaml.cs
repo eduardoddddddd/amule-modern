@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Net.Sockets;
 using AmuleModern.Amule;
 using Avalonia;
 using Avalonia.Controls;
@@ -18,8 +19,9 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim operations = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool ready, allowClose, closing;
+    private bool ready, allowClose, quitting;
     private string repository = "";
+    private TrayIcon? tray;
 
     public MainWindow()
     {
@@ -27,6 +29,7 @@ public partial class MainWindow : Window
         Opened += WindowOpened;
         Closing += WindowClosing;
         timer.Tick += async (_, _) => await RefreshAsync();
+        if (Program.CapturePath == null) AttachTray();
     }
     private async void WindowOpened(object? sender, EventArgs e)
     {
@@ -50,8 +53,16 @@ public partial class MainWindow : Window
             ready = true;
             EngineBadge.Text = $"●  aMule {engine.Client.ServerVersion}";
             ConnectionStatus.Text = "Motor autenticado · consultando las redes…";
-            Message.Text = "Perfil aislado listo. Puedes seleccionar varias descargas para pausar, reanudar o cancelar. Al cerrar esta versión, el motor se detiene ordenadamente.";
+            Message.Text = Program.CapturePath == null
+                ? "Perfil listo. La X oculta a la bandeja y las transferencias siguen. «Salir y detener» cierra el motor."
+                : "Perfil de captura listo. Al cerrar, el motor se detiene.";
             AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = true;
+            if (Program.CapturePath == null)
+            {
+                SingleInstance.Watch(link => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(link)), lifetime.Token);
+                if (!string.IsNullOrWhiteSpace(Program.StartupLink))
+                    await engine.Client.AddLinkAsync(Program.StartupLink, lifetime.Token);
+            }
         }
         catch (Exception ex) { ShowError(ex); }
         finally { operations.Release(); }
@@ -141,8 +152,13 @@ public partial class MainWindow : Window
     }
     private async Task RefreshAsync()
     {
-        if (!ready || closing || !await operations.WaitAsync(0)) return;
+        if (!ready || quitting || !await operations.WaitAsync(0)) return;
         try { await ReadStateAsync(); }
+        catch (Exception ex) when (IsRecoverable(ex))
+        {
+            try { await engine.ReconnectAsync(lifetime.Token); await ReadStateAsync(); Message.Text = "Conexión EC restablecida. El motor no se ha reiniciado."; }
+            catch (Exception reconnect) { timer.Stop(); ready = false; ShowError(reconnect); }
+        }
         catch (Exception ex) { timer.Stop(); ready = false; ShowError(ex); }
         finally { operations.Release(); }
     }
@@ -182,7 +198,7 @@ public partial class MainWindow : Window
     {
         if (PauseButton == null) return;
         var selected = SelectedDownloads();
-        bool active = ready && !closing && selected.Length > 0;
+        bool active = ready && !quitting && selected.Length > 0;
         PauseButton.IsEnabled = active && selected.Any(d => d.CanCancel && d.State != 7);
         ResumeButton.IsEnabled = active && selected.Any(d => d.CanCancel && d.State == 7);
         CancelButton.IsEnabled = active && selected.Any(d => d.CanCancel);
@@ -190,14 +206,22 @@ public partial class MainWindow : Window
     }
     private async Task ActAsync(Func<Task> action, string success)
     {
-        if (!ready || closing) return;
+        if (!ready || quitting) return;
         await operations.WaitAsync();
         try { await action(); Message.Text = success; await ReadStateAsync(); }
         catch (ArgumentException ex) { Message.Text = ex.Message; }
         catch (EcCommandException ex) { Message.Text = ex.Message; }
+        catch (Exception ex) when (IsRecoverable(ex))
+        {
+            try { await engine.ReconnectAsync(lifetime.Token); await action(); Message.Text = success + " Conexión EC restablecida."; await ReadStateAsync(); }
+            catch (Exception reconnect) { ready = false; timer.Stop(); ShowError(reconnect); }
+        }
         catch (Exception ex) { ready = false; timer.Stop(); ShowError(ex); }
         finally { operations.Release(); }
     }
+    private static bool IsRecoverable(Exception ex) =>
+        ex is SocketException or IOException or ObjectDisposedException or EndOfStreamException or TimeoutException or InvalidDataException
+        || ex.InnerException is SocketException or IOException or ObjectDisposedException;
     private async void AddLink(object? sender, RoutedEventArgs e)
     {
         string link = LinkInput.Text?.Trim() ?? "";
@@ -238,24 +262,24 @@ public partial class MainWindow : Window
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await RefreshAsync();
     private async void OpenSearch(object? sender, RoutedEventArgs e)
     {
-        if (!ready || closing) return;
+        if (!ready || quitting) return;
         await new SearchWindow(engine.Client).ShowDialog(this);
         await RefreshAsync();
     }
     private async void OpenServers(object? sender, RoutedEventArgs e)
     {
-        if (!ready || closing) return;
+        if (!ready || quitting) return;
         await new ServersWindow(engine.Client).ShowDialog(this);
         await RefreshAsync();
     }
     private async void OpenSettings(object? sender, RoutedEventArgs e)
     {
-        if (!ready || closing) return;
+        if (!ready || quitting) return;
         timer.Stop();
         await operations.WaitAsync();
         try { await new SettingsWindow(engine).ShowDialog(this); }
         finally { operations.Release(); }
-        if (ready && !closing) { timer.Start(); await RefreshAsync(); }
+        if (ready && !quitting) { timer.Start(); await RefreshAsync(); }
     }
     private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(engine.IncomingPath);
     private void OpenPlan(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(repository, "docs", "PLAN.md"));
@@ -268,23 +292,94 @@ public partial class MainWindow : Window
     {
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
-        ConnectionStatus.Text = "Sin conexión EC verificada. Cierra y vuelve a abrir para reintentar.";
+        ConnectionStatus.Text = "Sin conexión EC verificada. Si el motor sigue, recarga; «Salir y detener» cierra el proceso.";
         AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = false;
+    }
+    private void AttachTray()
+    {
+        var show = new NativeMenuItem("Mostrar ventana");
+        show.Click += (_, _) => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(null));
+        var quit = new NativeMenuItem("Salir y detener");
+        quit.Click += (_, _) => Dispatcher.UIThread.Post(() => _ = QuitAsync());
+        tray = new TrayIcon
+        {
+            Icon = TrayGlyph.Create(),
+            ToolTipText = "aMule Modern",
+            Menu = new NativeMenu { Items = { show, quit } }
+        };
+        tray.Clicked += (_, _) => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(null));
+        if (Application.Current != null) TrayIcon.SetIcons(Application.Current, [tray]);
+    }
+    private async Task ShowFromTrayAsync(string? link)
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        ShowInTaskbar = true;
+        Activate();
+        if (ready && !quitting) { timer.Start(); await RefreshAsync(); }
+        if (!string.IsNullOrWhiteSpace(link) && ready && !quitting)
+            await ActAsync(async () => await engine.Client.AddLinkAsync(link, lifetime.Token), "Enlace recibido de otra instancia.");
+    }
+    private async Task HideToTrayAsync()
+    {
+        timer.Stop();
+        string marker = Path.Combine(engine.ProfilePath, "tray-explained");
+        if (!File.Exists(marker))
+        {
+            var confirm = new ConfirmWindow("Sigue en segundo plano",
+                "La ventana se oculta en la bandeja y el motor continúa. Las transferencias no se detienen. Usa «Salir y detener» para cerrar aMule.",
+                "Entendido");
+            await confirm.ShowDialog(this);
+            if (!confirm.Accepted) return;
+            File.WriteAllText(marker, "1");
+        }
+        ShowInTaskbar = false;
+        Hide();
+        Message.Text = "Oculto en la bandeja. El motor sigue.";
+    }
+    private async void QuitClicked(object? sender, RoutedEventArgs e) => await QuitAsync();
+    private async Task QuitAsync()
+    {
+        if (quitting) return;
+        quitting = true;
+        timer.Stop();
+        Message.Text = "Guardando la cola y deteniendo el motor…";
+        Show();
+        ShowInTaskbar = true;
+        await operations.WaitAsync();
+        try
+        {
+            await engine.StopAsync();
+            lifetime.Cancel();
+            SingleInstance.SignalShow();
+            if (tray != null)
+            {
+                tray.IsVisible = false;
+                tray.Dispose();
+                tray = null;
+            }
+            allowClose = true;
+            Close();
+            if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                desktop.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            quitting = false;
+            Message.Text = "No se pudo cerrar el motor: " + ex.Message + " Puedes volver a intentar salir.";
+        }
+        finally { operations.Release(); }
     }
     private async void WindowClosing(object? sender, WindowClosingEventArgs e)
     {
         if (allowClose) return;
         e.Cancel = true;
-        if (closing) return;
-        closing = true; timer.Stop();
-        Message.Text = "Guardando la cola y deteniendo el motor…";
-        await operations.WaitAsync();
-        try
+        if (quitting) return;
+        if (Program.CapturePath != null)
         {
-            await engine.StopAsync(); lifetime.Cancel();
-            allowClose = true; Close();
+            await QuitAsync();
+            return;
         }
-        catch (Exception ex) { closing = false; Message.Text = "No se pudo cerrar el motor: " + ex.Message + " Puedes volver a intentar cerrar."; }
-        finally { operations.Release(); }
+        await HideToTrayAsync();
     }
 }

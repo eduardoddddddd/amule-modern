@@ -21,9 +21,10 @@
           <Button x:Name="SettingsButton" Classes="nav" Content="⚙    Ajustes" Click="OpenSettings" IsEnabled="False" />
           <Button Classes="nav" Content="↗    Abrir descargas" Click="OpenDownloads" />
           <Button Classes="nav" Content="▧    Ver plan" Click="OpenPlan" />
+          <Button x:Name="QuitButton" Classes="nav" Content="×    Salir y detener" Click="QuitClicked" ToolTip.Tip="Cierra la aplicación y detiene el motor" />
         </StackPanel>
         <Border Grid.Row="3" Background="#142333" CornerRadius="10" Padding="14">
-          <StackPanel Spacing="7"><TextBlock Text="TU CONEXIÓN" FontSize="9" LetterSpacing="1.4" Foreground="#80DBC6" /><TextBlock Text="Servidores eD2k" FontSize="11" /><TextBlock Text="Añade y conecta desde&#10;la opción Servidores." FontSize="11" Foreground="#899DB7" LineHeight="18" /></StackPanel>
+          <StackPanel Spacing="7"><TextBlock Text="EN SEGUNDO PLANO" FontSize="9" LetterSpacing="1.4" Foreground="#80DBC6" /><TextBlock Text="La X oculta a la bandeja." FontSize="11" /><TextBlock Text="Las transferencias siguen.&#10;Salir detiene el motor." FontSize="11" Foreground="#899DB7" LineHeight="18" /></StackPanel>
         </Border>
       </Grid>
     </Border>
@@ -74,7 +75,7 @@
       <Border Grid.Row="5" Background="#192637" CornerRadius="8" Margin="0,14,0,0" Padding="14,11"><TextBlock x:Name="Message" Text="Preparando el perfil de desarrollo…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12" /></Border>
     </Grid>
     <Border Grid.Row="1" Grid.Column="1" Background="#0F1926" BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="20,0">
-      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center"><TextBlock x:Name="ConnectionStatus" Text="Motor local · esperando autenticación" FontSize="11" Foreground="#8295AE" /><TextBlock Grid.Column="1" Text="0.5.0-dev  ·  C# / Avalonia" FontSize="10" Foreground="#637892" /></Grid>
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center"><TextBlock x:Name="ConnectionStatus" Text="Motor local · esperando autenticación" FontSize="11" Foreground="#8295AE" /><TextBlock Grid.Column="1" Text="0.6.0-dev  ·  C# / Avalonia" FontSize="10" Foreground="#637892" /></Grid>
     </Border>
   </Grid>
 </Window>

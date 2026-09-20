@@ -207,4 +207,4 @@ Este documento contiene decisiones propuestas y verificaciones documentales real
 
 La consulta a TDKop `joplin_status` devolvió conexión rechazada por Web Clipper en `127.0.0.1:41184`. La copia a la libreta Codex queda pendiente; no se ha utilizado joplin-bridge ni se ha accedido a SQLite para esta escritura.
 
-Actualización 20/09/2026: 0.2.0 Descargas y Servidores. 0.3.0 búsqueda. 0.4.0 selección múltiple y cancelar. 0.5.0 Incoming/tmp en Descargas/amule-modern. El estado ejecutado está en STATUS.md.
+Actualización 20/09/2026: 0.2.0 Descargas y Servidores. 0.3.0 búsqueda. 0.4.0 selección múltiple y cancelar. 0.5.0 Incoming/tmp en Descargas/amule-modern. 0.6.0 bandeja, una instancia y reconexión EC. El estado ejecutado está en STATUS.md.

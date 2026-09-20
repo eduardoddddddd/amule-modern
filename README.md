@@ -2,7 +2,7 @@
 
 Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC.
 
-**Estado: incremento funcional 0.5.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k, buscar archivos y elegir las carpetas Incoming/tmp. Las descargas del perfil de escritorio van a tu carpeta Descargas, no al repositorio. Kad permanece desactivado. Compartidos, bandeja e instalador son trabajo pendiente.
+**Estado: incremento funcional 0.6.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k, buscar archivos y elegir las carpetas Incoming/tmp. La X oculta a la bandeja y el motor sigue; «Salir y detener» cierra aMule. Kad permanece desactivado. Compartidos e instalador son trabajo pendiente.
 
 ## Qué hace hoy
 
@@ -25,7 +25,7 @@ Doble clic en `Iniciar.cmd`. Para preparar otro checkout desde PowerShell:
 
 El SDK se instala en `.tools`, sin cambiar el SDK global. La publicación autocontenida queda en `artifacts/app`; de momento requiere permanecer en el árbol del repositorio porque localiza allí el motor. No es aún un paquete portable independiente.
 
-La X cierra ordenadamente el motor en esta versión. No hay todavía funcionamiento en bandeja. Una segunda ventana con el mismo perfil se rechaza; no se adjunta a procesos ajenos. aMule para Windows tampoco permite dos `amuled` a la vez, aunque los perfiles sean distintos: cierra la app antes de ejecutar pruebas.
+La X oculta la ventana en la bandeja; las transferencias continúan. «Salir y detener» cierra el motor por EC. Una segunda ventana avisa a la ya abierta y puede entregar un enlace `ed2k://`. No se adjunta a procesos ajenos. aMule para Windows tampoco permite dos `amuled` a la vez, aunque los perfiles sean distintos: cierra la app antes de ejecutar pruebas.
 
 ## Datos
 

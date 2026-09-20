@@ -105,6 +105,14 @@ public sealed class EngineSession : IAsyncDisposable
         }
         throw new TimeoutException("amuled no abrió la conexión EC a tiempo.");
     }
+    public async Task ReconnectAsync(CancellationToken token = default)
+    {
+        if (process is null || process.HasExited) throw new IOException("El motor no está en ejecución.");
+        string hash = File.ReadAllLines(Path.Combine(ProfilePath, "amule.conf")).Single(l => l.StartsWith("ECPassword=", StringComparison.Ordinal))[11..];
+        Client.Dispose();
+        Client = new EcClient();
+        await Client.ConnectAsync(Port, hash, token);
+    }
     public async Task ApplyDirectoriesAsync(string incoming, string temp, CancellationToken token = default)
     {
         incoming = ValidateDirectory(incoming, "Incoming");

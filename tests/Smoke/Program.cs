@@ -99,6 +99,10 @@ if (args.Contains("--integration"))
         await engine.Client.PauseAsync(hash, false);
         Check((await engine.Client.GetDownloadsAsync()).Single().State != 7, "resume real download");
         await engine.Client.PauseAsync(hash, true);
+        int? pid = engine.ProcessId;
+        await engine.ReconnectAsync();
+        Check(engine.ProcessId == pid && pid.HasValue, "EC reconnect keeps the same amuled process");
+        Check((await engine.Client.GetDownloadsAsync()).Any(d => d.Hash == hash && d.State == 7), "queue readable after EC reconnect");
         const string extraHash = "C448017AAF21D8525FC10AE87AA6729D";
         await engine.Client.AddLinkAsync("ed2k://|file|amule-modern-test-def.txt|3|C448017AAF21D8525FC10AE87AA6729D|/");
         var queued = await engine.Client.GetDownloadsAsync();
