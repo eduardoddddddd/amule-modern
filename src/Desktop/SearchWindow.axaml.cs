@@ -14,7 +14,7 @@ public partial class SearchWindow : Window
     private IReadOnlyList<SearchResult> snapshot = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool busy, available, connected, kadConnected, searching, closed;
+    private bool busy, available, connected, kadConnected, searching, searchingKad, closed;
     public SearchWindow() { InitializeComponent(); ResultsGrid.ItemsSource = rows; }
     public SearchWindow(EcClient client) : this()
     {
@@ -49,14 +49,20 @@ public partial class SearchWindow : Window
     }
     private async Task RefreshAsync()
     {
-        var network = await client.GetNetworkStateAsync(); connected = network.Connected; kadConnected = network.KadConnected;
+        var network = await client.GetNetworkStateAsync();
+        UpdateNetworkState(network);
+        snapshot = await client.GetSearchResultsAsync(); ApplyFilter();
+    }
+    private void UpdateNetworkState(NetworkState network)
+    {
+        connected = network.Connected; kadConnected = network.KadConnected;
         NetworkLabel.Text = connected
             ? $"Servidor: {network.Server?.Name} · {network.Ed2kText}   |   Kad: {network.KadText}"
             : kadConnected
                 ? $"Sin eD2k. Kad: {network.KadText}"
                 : "Sin conexión eD2k ni Kad. Conecta desde Servidores o activa Kad en Ajustes.";
-        snapshot = await client.GetSearchResultsAsync(); ApplyFilter();
-        if (!connected) searching = false;
+        if (searching && !(searchingKad ? kadConnected : connected)) searching = false;
+        UpdateButtons();
     }
     private void ApplyFilter()
     {
@@ -79,7 +85,9 @@ public partial class SearchWindow : Window
     }
     private async void SearchClicked(object? sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
-        await client.StartSearchAsync(QueryInput.Text ?? "", ScopeInput.SelectedIndex == 1, ScopeInput.SelectedIndex == 2);
+        bool useKad = ScopeInput.SelectedIndex == 2;
+        await client.StartSearchAsync(QueryInput.Text ?? "", ScopeInput.SelectedIndex == 1, useKad);
+        searchingKad = useKad;
         snapshot = []; rows.Clear(); searching = true;
         StatusMessage.Text = "Búsqueda enviada. Los resultados se actualizan cada dos segundos. Puedes iniciar otra búsqueda o detenerla.";
         await RefreshAsync();
@@ -102,12 +110,23 @@ public partial class SearchWindow : Window
     {
         for (int i = 0; i < 100 && (!available || busy); i++) await Task.Delay(50);
         if (!available) throw new InvalidOperationException("La ventana de búsqueda no está lista.");
+        // Inject connection states into the UI only; no Kad packets or public peers.
+        var actualNetwork = await client.GetNetworkStateAsync();
+        searching = true; searchingKad = true; ScopeInput.SelectedIndex = 2;
+        UpdateNetworkState(new NetworkState(false, false, true, true, null, null));
+        if (!StopButton.IsEnabled || !SearchButton.IsEnabled) throw new InvalidOperationException("Kad sin eD2k pierde el botón Detener.");
+        ScopeInput.SelectedIndex = 0;
+        UpdateNetworkState(new NetworkState(false, false, true, true, null, null));
+        if (!StopButton.IsEnabled) throw new InvalidOperationException("Cambiar el ámbito pierde la búsqueda Kad activa.");
+        UpdateNetworkState(new NetworkState(false, false, false, false, null, null));
+        if (StopButton.IsEnabled) throw new InvalidOperationException("Detener sigue activo tras desconectar la red de la búsqueda.");
+        UpdateNetworkState(actualNetwork);
         if (!connected)
         {
             if (SearchButton.IsEnabled) throw new InvalidOperationException("Buscar no debe activarse sin eD2k.");
             if (!NetworkLabel.Text!.Contains("Servidores", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Sin conexión no se indica ir a Servidores.");
-            StatusMessage.Text = "Prueba de interfaz: Buscar visible, sin eD2k. La búsqueda real se cubre en integración controlada.";
+            StatusMessage.Text = "Prueba superada: estados simulados Kad sin eD2k conservan Detener. Búsqueda real cubierta en integración controlada.";
             return;
         }
         QueryInput.Text = "ubuntu";

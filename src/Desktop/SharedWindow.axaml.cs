@@ -18,10 +18,12 @@ public partial class SharedWindow : Window
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(4) };
     private bool busy, available, closed;
     private string[] extraFolders = [];
+    private readonly ObservableCollection<string> folderOptions = [];
     public SharedWindow() { InitializeComponent(); SharedGrid.ItemsSource = rows; }
     public SharedWindow(EngineSession engine) : this()
     {
         this.engine = engine;
+        ExtraFoldersInput.ItemsSource = folderOptions;
         Opened += async (_, _) => { await RunAsync(async () => { available = true; await RefreshAsync(); }); if (available && !closed) timer.Start(); };
         Closing += (_, e) => { if (busy) e.Cancel = true; };
         Closed += (_, _) => { closed = true; timer.Stop(); };
@@ -40,8 +42,7 @@ public partial class SharedWindow : Window
         bool selected = SharedGrid.SelectedItem is SharedFile;
         CopyLinkButton.IsEnabled = selected && available && !busy;
         OpenFolderButton.IsEnabled = selected && available && !busy;
-        RemoveFolderButton.IsEnabled = available && !busy && extraFolders.Length > 0 && SharedGrid.SelectedItem is SharedFile file
-            && extraFolders.Any(folder => UserFolders.IsUnder(file.Path, folder) || UserFolders.PathsEqual(file.FolderText, folder));
+        RemoveFolderButton.IsEnabled = available && !busy && ExtraFoldersInput.SelectedItem is string;
     }
     private void Fail(Exception ex) { available = false; timer.Stop(); StatusMessage.Text = "No se pudo consultar el motor: " + ex.Message; }
     private async Task RunAsync(Func<Task> action, string? success = null)
@@ -59,9 +60,13 @@ public partial class SharedWindow : Window
         extraFolders = engine.ExtraSharedDirectories()
             .Where(path => !UserFolders.PathsEqual(path, engine.IncomingPath))
             .ToArray();
-        FoldersText.Text = extraFolders.Length == 0
-            ? "Incoming se comparte solo: " + engine.IncomingPath
-            : string.Join("\n", extraFolders);
+        FoldersText.Text = "Incoming se comparte solo: " + engine.IncomingPath;
+        string? selectedFolder = ExtraFoldersInput.SelectedItem as string;
+        for (int i = folderOptions.Count - 1; i >= 0; i--)
+            if (!extraFolders.Any(folder => UserFolders.PathsEqual(folder, folderOptions[i]))) folderOptions.RemoveAt(i);
+        foreach (string folder in extraFolders)
+            if (!folderOptions.Any(existing => UserFolders.PathsEqual(existing, folder))) folderOptions.Add(folder);
+        ExtraFoldersInput.SelectedItem = folderOptions.FirstOrDefault(folder => selectedFolder != null && UserFolders.PathsEqual(folder, selectedFolder));
         CountBadge.Text = snapshot.Count == 1 ? "1 archivo" : snapshot.Count + " archivos";
         ApplyFilter();
     }
@@ -100,9 +105,7 @@ public partial class SharedWindow : Window
     }
     private async void RemoveFolder(object? sender, RoutedEventArgs e)
     {
-        if (SharedGrid.SelectedItem is not SharedFile file) return;
-        string? folder = extraFolders.FirstOrDefault(path => UserFolders.IsUnder(file.Path, path) || UserFolders.PathsEqual(file.FolderText, path));
-        if (folder is null) { StatusMessage.Text = "Selecciona un archivo de una carpeta extra. Incoming no se puede quitar."; return; }
+        if (ExtraFoldersInput.SelectedItem is not string folder) return;
         var confirm = new ConfirmWindow("Dejar de compartir",
             $"Se dejará de ofrecer la carpeta «{folder}». Los archivos no se borran del disco.",
             "Dejar de compartir");
@@ -110,7 +113,7 @@ public partial class SharedWindow : Window
         if (!confirm.Accepted) return;
         await RunAsync(async () =>
         {
-            await engine.ApplyExtraSharedDirectoriesAsync(extraFolders.Where(path => !UserFolders.PathsEqual(path, folder)).ToArray());
+            await engine.RemoveExtraSharedDirectoryAsync(folder);
             await RefreshAsync();
         }, "Carpeta extra retirada. Incoming sigue compartido.");
     }
@@ -143,12 +146,25 @@ public partial class SharedWindow : Window
     {
         for (int i = 0; i < 100 && (!available || busy); i++) await Task.Delay(50);
         if (!available) throw new InvalidOperationException("La ventana de compartidos no está lista.");
+        string emptyFolder = Path.Combine(engine.ProfilePath, "ui-empty-share-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(emptyFolder);
+        await RunAsync(async () => { await engine.ApplyExtraSharedDirectoriesAsync(extraFolders.Append(emptyFolder).ToArray()); await RefreshAsync(); });
+        ExtraFoldersInput.SelectedItem = emptyFolder;
+        if (!RemoveFolderButton.IsEnabled || rows.Any(row => UserFolders.IsUnder(row.Path, emptyFolder)))
+            throw new InvalidOperationException("No se puede seleccionar una carpeta vacía sin seleccionar archivos.");
+        RemoveFolderButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var confirm = OwnedWindows.OfType<ConfirmWindow>().Single();
+        confirm.FindControl<Button>("AcceptButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        for (int i = 0; i < 100 && engine.ExtraSharedDirectories().Contains(emptyFolder); i++) await Task.Delay(50);
+        await gate.WaitAsync(); gate.Release();
+        if (engine.ExtraSharedDirectories().Contains(emptyFolder) || !Directory.Exists(emptyFolder))
+            throw new InvalidOperationException("Quitar carpeta vacía no retiró la entrada o borró el directorio.");
         if (string.IsNullOrWhiteSpace(FoldersText.Text) || !FoldersText.Text.Contains("Incoming", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Compartidos no indica Incoming.");
         FilterInput.Text = "no-coincide-compartidos-xyz";
         await Task.Delay(50);
         if (rows.Count != 0) throw new InvalidOperationException("El filtro no oculta filas.");
         FilterInput.Text = "";
-        StatusMessage.Text = "Prueba de interfaz: lista, Incoming y filtro. Añadir carpeta y hash se cubren en integración.";
+        StatusMessage.Text = "Prueba superada: quitar carpeta vacía desde su selector, confirmar y conservar el directorio. Lista y filtro correctos.";
     }
 }

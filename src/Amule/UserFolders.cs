@@ -34,7 +34,17 @@ public static class UserFolders
         Path.GetFullPath(path).StartsWith(Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
         || PathsEqual(path, parent);
 
-    public static void CopyContents(string from, string to)
+    public static void MigrateLegacyProfileOnce(string profile, string incoming, string temp, bool migrateIncoming, bool migrateTemp)
+    {
+        string marker = Path.Combine(profile, "folders-migrated-v1");
+        if (File.Exists(marker)) return;
+        // An external path in an existing config means the previous version already
+        // migrated it. Never restore old backups into that active library again.
+        if (migrateIncoming) CopyContents(Path.Combine(profile, "Incoming"), incoming);
+        if (migrateTemp) CopyContents(Path.Combine(profile, "Temp"), temp);
+        File.WriteAllText(marker, "Legacy folders processed. Originals retained as backup.\n");
+    }
+    private static void CopyContents(string from, string to)
     {
         if (!Directory.Exists(from) || PathsEqual(from, to)) return;
         Directory.CreateDirectory(to);
@@ -42,8 +52,29 @@ public static class UserFolders
         {
             string dest = Path.Combine(to, Path.GetRelativePath(from, file));
             Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-            if (!File.Exists(dest)) File.Copy(file, dest);
+            if (File.Exists(dest))
+            {
+                if (!FilesEqual(file, dest)) throw new IOException("La migración encontró un archivo distinto en destino: " + dest);
+                continue;
+            }
+            string staging = dest + ".migrating-" + Guid.NewGuid().ToString("N");
+            try { File.Copy(file, staging); File.Move(staging, dest); }
+            finally { if (File.Exists(staging)) File.Delete(staging); }
         }
+    }
+    private static bool FilesEqual(string left, string right)
+    {
+        using var a = File.OpenRead(left);
+        using var b = File.OpenRead(right);
+        if (a.Length != b.Length) return false;
+        byte[] first = new byte[65536], second = new byte[65536];
+        while (a.Position < a.Length)
+        {
+            int count = (int)Math.Min(first.Length, a.Length - a.Position);
+            a.ReadExactly(first.AsSpan(0, count)); b.ReadExactly(second.AsSpan(0, count));
+            if (!first.AsSpan(0, count).SequenceEqual(second.AsSpan(0, count))) return false;
+        }
+        return true;
     }
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]

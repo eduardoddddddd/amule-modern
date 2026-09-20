@@ -29,6 +29,7 @@ public sealed class EngineSession : IAsyncDisposable
     }
     public async Task StartAsync(string repository, string profileName, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
         if (process != null) throw new InvalidOperationException("La sesión ya tiene un proceso.");
         if (profileName.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-')) throw new ArgumentException("Perfil inválido.");
         this.repository = repository;
@@ -68,10 +69,11 @@ public sealed class EngineSession : IAsyncDisposable
             TempPath = ReadDirectory(lines, "TempDir=", isolated ? Path.Combine(ProfilePath, "Temp") : UserFolders.Temp());
             if (!isolated)
             {
-                if (UserFolders.IsUnder(IncomingPath, ProfilePath)) IncomingPath = UserFolders.Incoming();
-                if (UserFolders.IsUnder(TempPath, ProfilePath)) TempPath = UserFolders.Temp();
-                UserFolders.CopyContents(Path.Combine(ProfilePath, "Incoming"), IncomingPath);
-                UserFolders.CopyContents(Path.Combine(ProfilePath, "Temp"), TempPath);
+                bool migrateIncoming = UserFolders.IsUnder(IncomingPath, ProfilePath);
+                bool migrateTemp = UserFolders.IsUnder(TempPath, ProfilePath);
+                if (migrateIncoming) IncomingPath = UserFolders.Incoming();
+                if (migrateTemp) TempPath = UserFolders.Temp();
+                UserFolders.MigrateLegacyProfileOnce(ProfilePath, IncomingPath, TempPath, migrateIncoming, migrateTemp);
             }
         }
         Directory.CreateDirectory(IncomingPath);
@@ -115,23 +117,47 @@ public sealed class EngineSession : IAsyncDisposable
     }
     public async Task ApplyDirectoriesAsync(string incoming, string temp, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
         incoming = ValidateDirectory(incoming, "Incoming");
         temp = ValidateDirectory(temp, "temporales");
         if (UserFolders.PathsEqual(incoming, temp)) throw new ArgumentException("Incoming y temporales no pueden ser la misma carpeta.");
         string repo = repository, name = profileName;
         if (string.IsNullOrEmpty(repo)) throw new InvalidOperationException("El motor no está iniciado.");
+        if (UserFolders.PathsEqual(incoming, IncomingPath) && UserFolders.PathsEqual(temp, TempPath)) return;
+        if (!UserFolders.PathsEqual(temp, TempPath) && (await Client.GetDownloadsAsync(token)).Any(d => !d.IsComplete))
+            throw new ArgumentException("No puedes cambiar temporales mientras haya descargas pendientes, incluidas las pausadas. Termínalas o cancélalas antes; sus archivos se conservan en la carpeta actual.");
+        // Check destinations before interrupting a working motor.
+        CheckWritableDirectory(incoming);
+        CheckWritableDirectory(temp);
         await StopAsync();
-        IncomingPath = incoming;
-        TempPath = temp;
-        Directory.CreateDirectory(incoming);
-        Directory.CreateDirectory(temp);
         string config = Path.Combine(ProfilePath, "amule.conf");
-        WriteSettings(config, File.ReadAllText(config), new Dictionary<string, string>
+        string previousConfig = File.ReadAllText(config);
+        try
         {
-            ["IncomingDir"] = UserFolders.ForConfig(incoming),
-            ["TempDir"] = UserFolders.ForConfig(temp)
-        });
-        await StartAsync(repo, name, token);
+            WriteSettings(config, previousConfig, new Dictionary<string, string>
+            {
+                ["IncomingDir"] = UserFolders.ForConfig(incoming),
+                ["TempDir"] = UserFolders.ForConfig(temp)
+            });
+            await StartAsync(repo, name, token);
+        }
+        catch (Exception error)
+        {
+            try
+            {
+                await StopAsync();
+                File.WriteAllText(config, previousConfig, new UTF8Encoding(false));
+                await StartAsync(repo, name, CancellationToken.None);
+            }
+            catch (Exception rollback) { throw new IOException("Falló el cambio de carpetas y no se pudo restaurar el motor: " + rollback.Message, new AggregateException(error, rollback)); }
+            throw new IOException("No se aplicaron las carpetas. Se restauraron la configuración anterior y el motor: " + error.Message, error);
+        }
+    }
+    private static void CheckWritableDirectory(string path)
+    {
+        Directory.CreateDirectory(path);
+        string probe = Path.Combine(path, ".amule-write-check-" + Guid.NewGuid().ToString("N"));
+        using var stream = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
     }
     public async Task ApplyExtraSharedDirectoriesAsync(IReadOnlyList<string> directories, CancellationToken token = default)
     {
@@ -156,6 +182,13 @@ public sealed class EngineSession : IAsyncDisposable
             .Where(line => line.Length > 0)
             .Select(UserFolders.FromConfig)
             .ToArray();
+    }
+    public async Task RemoveExtraSharedDirectoryAsync(string directory, CancellationToken token = default)
+    {
+        // Removing a saved entry must work even when it no longer exists on disk,
+        // including when other saved directories have also become unavailable.
+        WriteExplicitShared(ExtraSharedDirectories().Where(path => !UserFolders.PathsEqual(path, directory)).ToArray());
+        await Client.ReloadSharedFilesAsync(token);
     }
     public string ValidateExtraShared(string path)
     {

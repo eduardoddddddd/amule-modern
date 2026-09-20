@@ -14,7 +14,10 @@
     <Border Grid.Row="1" Margin="0,22,0,16" Padding="16" Background="#192637" CornerRadius="10">
       <Grid ColumnDefinitions="*,12,Auto,8,Auto" RowDefinitions="Auto,Auto">
         <TextBlock Text="CARPETAS EXTRA" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
-        <TextBlock x:Name="FoldersText" Grid.Row="1" Margin="0,8,0,0" Text="Ninguna además de Incoming." FontSize="12" TextWrapping="Wrap" Foreground="#ABBAD0" />
+        <StackPanel Grid.Row="1" Margin="0,8,0,0" Spacing="8">
+          <TextBlock x:Name="FoldersText" Text="Incoming se comparte automáticamente." FontSize="12" TextWrapping="Wrap" Foreground="#ABBAD0" />
+          <ComboBox x:Name="ExtraFoldersInput" PlaceholderText="Selecciona una carpeta extra" HorizontalAlignment="Stretch" SelectionChanged="SelectionChanged" />
+        </StackPanel>
         <Button x:Name="AddFolderButton" Grid.Column="2" Grid.RowSpan="2" VerticalAlignment="Center" Content="Añadir carpeta…" Click="AddFolder" IsEnabled="False" />
         <Button x:Name="RemoveFolderButton" Grid.Column="4" Grid.RowSpan="2" VerticalAlignment="Center" Content="Quitar seleccionada" Click="RemoveFolder" IsEnabled="False" />
       </Grid>

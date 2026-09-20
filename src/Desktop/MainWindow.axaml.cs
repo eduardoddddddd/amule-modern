@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim operations = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool ready, allowClose, quitting;
+    private bool ready, allowClose, quitting, startupAttempted;
     private string repository = "";
     private TrayIcon? tray;
 
@@ -33,6 +33,9 @@ public partial class MainWindow : Window
     }
     private async void WindowOpened(object? sender, EventArgs e)
     {
+        // Avalonia raises Opened again after Hide/Show (tray restore).
+        if (startupAttempted) return;
+        startupAttempted = true;
         await operations.WaitAsync();
         try
         {
@@ -112,7 +115,7 @@ public partial class MainWindow : Window
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
             if (childWindow != null)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI opened. Disconnected chrome verified when eD2k is down; live results covered by controlled integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp and Kad controls." : Program.ShowShared ? "PASS: shared UI shows Incoming and filter." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : !Program.ExerciseUi ? "CAPTURE ONLY: UI not exercised." : Program.ShowSearch ? "PASS: search UI; simulated Kad-only active search retains Stop, survives scope change, stops on network loss. Real search covered separately by integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp and Kad controls." : Program.ShowShared ? "PASS: shared UI removes empty folder through picker and confirmation; directory retained. Incoming and filter verified." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
                 childWindow.Close();
             }
             Close();
@@ -124,12 +127,17 @@ public partial class MainWindow : Window
     }
     private async Task ExerciseUiAsync()
     {
+        int? runningMotor = engine.ProcessId;
+        Hide(); Show();
+        await operations.WaitAsync(); operations.Release();
+        if (engine.ProcessId != runningMotor || !AddButton.IsEnabled || !SearchNavButton.IsEnabled)
+            throw new InvalidOperationException("Restaurar la ventana intentó reiniciar el motor o deshabilitó controles.");
         // Exercise actual routed button events, against the isolated capture engine.
         LinkInput.Text = "ed2k://|file|Prueba de interfaz - abc.txt|3|A448017AAF21D8525FC10AE87AA6729D|/";
         AddButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
-        if (rows.Count != 1) throw new InvalidOperationException("El botón Añadir no actualizó la tabla.");
-        DownloadsGrid.SelectedItem = rows[0];
+        var first = rows.SingleOrDefault(r => r.Hash == "A448017AAF21D8525FC10AE87AA6729D") ?? throw new InvalidOperationException("El botón Añadir no actualizó la tabla.");
+        DownloadsGrid.SelectedItem = first;
         PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
         if (rows[0].State != 7) throw new InvalidOperationException("El botón Pausar no pausó la cola real.");
@@ -141,16 +149,17 @@ public partial class MainWindow : Window
         LinkInput.Text = "ed2k://|file|Prueba de interfaz - def.txt|3|C448017AAF21D8525FC10AE87AA6729D|/";
         AddButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
-        if (rows.Count != 2) throw new InvalidOperationException("No se añadieron dos descargas para la selección múltiple.");
+        if (!rows.Any(r => r.Hash == "C448017AAF21D8525FC10AE87AA6729D")) throw new InvalidOperationException("No se añadieron dos descargas para la selección múltiple.");
+        int unfilteredCount = rows.Count;
         DownloadsGrid.SelectedItems.Clear();
         foreach (var row in rows) DownloadsGrid.SelectedItems.Add(row);
         if (!PauseButton.IsEnabled) throw new InvalidOperationException("Pausar no se habilita con varias filas.");
         FilterInput.Text = "no-coincide-123";
         await WaitForUiAsync(() => rows.Count == 0, "El filtro no excluye filas.");
         FilterInput.Text = "";
-        await WaitForUiAsync(() => rows.Count == 2, "El filtro no restaura filas.");
+        await WaitForUiAsync(() => rows.Count == unfilteredCount, "El filtro no restaura filas.");
         Message.Text = "Prueba de interfaz superada: añadir, pausar, reanudar, filtro y selección múltiple. Cancelar se cubre en las pruebas de integración.";
-        File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: UI add, pause, resume, filter, multi-select. Real EC engine; isolated fixture; cancel covered by integration.\n");
+        File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: Hide/Show preserves motor and controls; UI add, pause, resume, filter, multi-select. Real EC engine; isolated fixture; cancel covered by integration.\n");
     }
     private static async Task WaitForUiAsync(Func<bool> condition, string error)
     {

@@ -20,6 +20,7 @@ public partial class SettingsWindow : Window
             ? "Este perfil de prueba usa carpetas aisladas dentro de .local."
             : $"Por defecto: {UserFolders.Incoming()}";
         Opened += async (_, _) => await RefreshKadAsync();
+        Closing += (_, e) => { if (busy) e.Cancel = true; };
     }
     private async Task RefreshKadAsync()
     {

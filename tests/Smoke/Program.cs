@@ -79,6 +79,22 @@ if (args.Contains("--integration"))
     const string link = "ed2k://|file|amule-modern-test-abc.txt|3|A448017AAF21D8525FC10AE87AA6729D|/";
     const string incomingShare = "amule-modern-share-in.txt";
     string extraDir = Path.Combine(root, ".local", profile, "share-extra");
+    string migrationProfile = Path.Combine(root, ".local", profile + "-migration");
+    string legacyTemp = Path.Combine(migrationProfile, "Temp");
+    string migratedTemp = Path.Combine(migrationProfile, "new-temp");
+    string migratedIncoming = Path.Combine(migrationProfile, "new-incoming");
+    Directory.CreateDirectory(legacyTemp);
+    File.WriteAllText(Path.Combine(legacyTemp, "001.part.met"), "saved partial metadata");
+    UserFolders.MigrateLegacyProfileOnce(migrationProfile, migratedIncoming, migratedTemp, true, true);
+    Check(File.Exists(Path.Combine(migratedTemp, "001.part.met")), "legacy migration copies pending metadata once");
+    File.Delete(Path.Combine(migratedTemp, "001.part.met"));
+    UserFolders.MigrateLegacyProfileOnce(migrationProfile, migratedIncoming, migratedTemp, true, true);
+    Check(!File.Exists(Path.Combine(migratedTemp, "001.part.met")) && File.Exists(Path.Combine(legacyTemp, "001.part.met")), "cancelled migrated file is not resurrected from retained backup");
+    string alreadyMigrated = Path.Combine(root, ".local", profile + "-already-migrated");
+    Directory.CreateDirectory(Path.Combine(alreadyMigrated, "Temp"));
+    File.WriteAllText(Path.Combine(alreadyMigrated, "Temp", "001.part.met"), "stale backup");
+    UserFolders.MigrateLegacyProfileOnce(alreadyMigrated, migratedIncoming, migratedTemp, false, false);
+    Check(!File.Exists(Path.Combine(migratedTemp, "001.part.met")), "existing external library never imports stale profile backups");
     await using (var engine = new EngineSession())
     {
         await engine.StartAsync(root, profile);
@@ -94,6 +110,17 @@ if (args.Contains("--integration"))
         }
         Check((await engine.Client.GetDownloadsAsync()).Count == 0, "isolated empty queue");
         Check((await engine.Client.GetSharedFilesAsync()).Count == 0, "isolated empty shared list");
+        string startingIncoming = engine.IncomingPath, startingTemp = engine.TempPath;
+        string switchedIncoming = Path.Combine(engine.ProfilePath, "incoming-changed");
+        await engine.ApplyDirectoriesAsync(switchedIncoming, startingTemp);
+        Check(UserFolders.PathsEqual(engine.IncomingPath, switchedIncoming), "changing Incoming with an empty queue restarts with requested directory");
+        await engine.ApplyDirectoriesAsync(startingIncoming, startingTemp);
+        int? beforeInvalidPath = engine.ProcessId;
+        string blockedPath = Path.Combine(engine.ProfilePath, "not-a-directory");
+        File.WriteAllText(blockedPath, "fixture");
+        bool invalidDestination = false;
+        try { await engine.ApplyDirectoriesAsync(blockedPath, startingTemp); } catch (IOException) { invalidDestination = true; }
+        Check(invalidDestination && engine.ProcessId == beforeInvalidPath && UserFolders.PathsEqual(engine.IncomingPath, startingIncoming), "unusable destination is rejected without stopping the motor");
         File.WriteAllText(Path.Combine(engine.IncomingPath, incomingShare), "amule-modern-share-incoming-payload");
         await engine.Client.ReloadSharedFilesAsync();
         bool incomingShared = false;
@@ -123,6 +150,15 @@ if (args.Contains("--integration"))
         Check(rejectedIncoming && rejectedTemp && rejectedProfile, "reject Incoming, Temp and the engine profile as extra shares");
         await engine.ApplyExtraSharedDirectoriesAsync([]);
         Check(!engine.ExtraSharedDirectories().Any(d => UserFolders.PathsEqual(d, extraDir)), "removing extra shared directory");
+        string emptyShare = Path.Combine(engine.ProfilePath, "empty-share");
+        string missingShare = Path.Combine(engine.ProfilePath, "missing-share");
+        Directory.CreateDirectory(emptyShare); Directory.CreateDirectory(missingShare);
+        await engine.ApplyExtraSharedDirectoriesAsync([emptyShare, missingShare]);
+        Directory.Delete(missingShare); // Empty, exact fixture path, no recursive removal.
+        await engine.RemoveExtraSharedDirectoryAsync(emptyShare);
+        Check(engine.ExtraSharedDirectories().Count == 1 && !engine.ExtraSharedDirectories().Contains(emptyShare), "empty share can be removed while another saved folder is missing");
+        await engine.RemoveExtraSharedDirectoryAsync(missingShare);
+        Check(engine.ExtraSharedDirectories().Count == 0, "missing shared folder can be removed by saved path");
         Check(!(await engine.Client.GetKadEnabledAsync()) && !(await engine.Client.GetNetworkStateAsync()).KadRunning, "Kad starts disabled");
         Check((await engine.Client.GetDownloadsAsync()).Count == 0, "sharing does not enqueue downloads");
         await engine.Client.AddLinkAsync(link);
@@ -130,6 +166,12 @@ if (args.Contains("--integration"))
         Check(downloads.Any(d => d.Hash == hash && d.Size == 3), "add link and read real queue");
         await engine.Client.PauseAsync(hash, true);
         Check((await engine.Client.GetDownloadsAsync()).Single().State == 7, "pause real download");
+        int? beforeFolderChange = engine.ProcessId;
+        bool pendingRejected = false;
+        try { await engine.ApplyDirectoriesAsync(engine.IncomingPath, Path.Combine(engine.ProfilePath, "new-temp")); }
+        catch (ArgumentException) { pendingRejected = true; }
+        Check(pendingRejected && engine.ProcessId == beforeFolderChange && (await engine.Client.GetDownloadsAsync()).Single().Hash == hash,
+            "changing Temp with a paused download preserves the running motor and queue");
         await engine.Client.PauseAsync(hash, false);
         Check((await engine.Client.GetDownloadsAsync()).Single().State != 7, "resume real download");
         await engine.Client.PauseAsync(hash, true);

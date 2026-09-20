@@ -1,0 +1,95 @@
+  Determinando los proyectos que se van a restaurar...
+  Todos los proyectos están actualizados para la restauración.
+  Amule -> C:\Users\Edu\source\amule-modern\src\Amule\bin\Release\net10.0\Amule.dll
+  Smoke -> C:\Users\Edu\source\amule-modern\tests\Smoke\bin\Release\net10.0\Smoke.dll
+  Desktop -> C:\Users\Edu\source\amule-modern\src\Desktop\bin\Release\net10.0\AmuleModern.dll
+
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+Tiempo transcurrido 00:00:03.51
+PASS: golden EC stats request
+PASS: independent nested tag fixture
+PASS: nested packet wire encoding
+PASS: truncated tag
+PASS: trailing packet data
+PASS: parent shorter than its children
+PASS: user library lives under Downloads/amule-modern
+PASS: salt without leading zero padding
+PASS: fragmented TCP authentication
+PASS: legacy migration copies pending metadata once
+PASS: cancelled migrated file is not resurrected from retained backup
+PASS: existing external library never imports stale profile backups
+PASS: real amuled process and EC auth
+PASS: integration folders stay inside the isolated profile
+ENGINE: 3.0.1; EC: 127.0.0.1:58642
+PASS: real engine rejects wrong password
+PASS: isolated empty queue
+PASS: isolated empty shared list
+PASS: changing Incoming with an empty queue restarts with requested directory
+PASS: unusable destination is rejected without stopping the motor
+PASS: incoming file appears in shared list after reload
+PASS: extra shared directory persisted
+PASS: extra folder file appears in shared list
+PASS: reject Incoming, Temp and the engine profile as extra shares
+PASS: removing extra shared directory
+PASS: empty share can be removed while another saved folder is missing
+PASS: missing shared folder can be removed by saved path
+PASS: Kad starts disabled
+PASS: sharing does not enqueue downloads
+PASS: add link and read real queue
+PASS: pause real download
+PASS: changing Temp with a paused download preserves the running motor and queue
+PASS: resume real download
+PASS: EC reconnect keeps the same amuled process
+PASS: queue readable after EC reconnect
+PASS: full queue detail includes session ECID
+PASS: pause several downloads in one EC command
+PASS: cancel removes one download and keeps the other
+PASS: real stats request
+PASS: enable eD2k without enabling Kad or autoconnect
+PASS: Kad preference enabled
+PASS: Kad start leaves the network running
+PASS: Kad preference disabled again
+PASS: Kad stop leaves the network inactive
+PASS: add and list real saved server
+PASS: adding duplicate is idempotent
+PASS: reject out-of-range port without changing engine
+PASS: saved server is not connected automatically
+PASS: engine opens real eD2k TCP session
+PASS: eD2k login packet received by controlled server
+PASS: TCP alone is not reported as connected eD2k
+PASS: confirmed eD2k connection and HighID decoded
+PASS: real eD2k server receives search terms
+PASS: real server result decoded through engine EC
+PASS: search result added to real download queue
+PASS: stop search preserves received results
+PASS: disconnect established eD2k session
+PASS: graceful shutdown without kill
+PASS: queue and paused state survive restart
+PASS: cancelled download does not return after restart
+PASS: saved server list survives restart
+PASS: restart does not autoconnect
+PASS: restart keeps Kad disabled
+PASS: incoming shared file survives restart
+PASS: removed extra share does not return after restart
+PASS: Windows temporary files use the intended profile directory
+PASS: isolated profiles do not use the user Downloads library
+NOTE: controlled same-host LAN eD2k handshake verified. No public server or file payload tested in this suite.
+RESULT: 66 checks passed.
+  Amule -> C:\Users\Edu\source\amule-modern\src\Amule\bin\Release\net10.0\Amule.dll
+  Desktop -> C:\Users\Edu\source\amule-modern\src\Desktop\bin\Release\net10.0\win-x64\AmuleModern.dll
+  Desktop -> C:\Users\Edu\source\amule-modern\artifacts\app\
+
+UI main (exit 0):
+PASS: Hide/Show preserves motor and controls; UI add, pause, resume, filter, multi-select. Real EC engine; isolated fixture; cancel covered by integration.
+
+UI search (exit 0):
+PASS: search UI; simulated Kad-only active search retains Stop, survives scope change, stops on network loss. Real search covered separately by integration.
+
+UI shared (exit 0):
+PASS: shared UI removes empty folder through picker and confirmation; directory retained. Incoming and filter verified.
+
+UI settings (exit 0):
+PASS: settings UI shows Incoming, tmp and Kad controls.
