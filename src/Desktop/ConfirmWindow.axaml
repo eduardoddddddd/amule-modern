@@ -1,0 +1,12 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.ConfirmWindow"
+        Width="460" Height="210" MinWidth="420" MinHeight="190" CanResize="False"
+        Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto">
+    <TextBlock x:Name="TitleText" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock x:Name="BodyText" Grid.Row="1" Margin="0,12,0,18" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="13" />
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button Content="Volver" Click="CancelClicked" />
+      <Button x:Name="AcceptButton" Classes="danger" Content="Cancelar descargas" Click="AcceptClicked" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -32,3 +32,9 @@ Código oficial fijado a 3.0.1:
 - https://github.com/amule-org/amule/blob/3.0.1/src/SearchList.cpp — una búsqueda activa en el motor; arrancar otra detiene la anterior.
 
 La implementación anuncia solo servidor local o global eD2k. Kad sigue desactivado en el perfil. Una búsqueda de uso real no sustituye la prueba formal de integridad de transferencia.
+
+## Cola — verificación de código 20/09/2026
+
+- https://github.com/amule-org/amule/blob/3.0.1/src/ExternalConn.cpp — un comando de partfile acepta varios hashes; EC_OP_PARTFILE_DELETE llama a `PartFile::Delete`; EC_OP_CLEAR_COMPLETED usa EC_TAG_ECID (0x000F).
+- https://github.com/amule-org/amule/blob/3.0.1/src/DownloadQueue.cpp — `ClearCompleted` solo retira de la lista de completados; no borra Incoming.
+- En detalle FULL el entero de la etiqueta 0x300 es el ECID de sesión. No se guarda entre arranques.

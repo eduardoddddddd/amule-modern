@@ -96,6 +96,14 @@ if (args.Contains("--integration"))
         await engine.Client.PauseAsync(hash, false);
         Check((await engine.Client.GetDownloadsAsync()).Single().State != 7, "resume real download");
         await engine.Client.PauseAsync(hash, true);
+        const string extraHash = "C448017AAF21D8525FC10AE87AA6729D";
+        await engine.Client.AddLinkAsync("ed2k://|file|amule-modern-test-def.txt|3|C448017AAF21D8525FC10AE87AA6729D|/");
+        var queued = await engine.Client.GetDownloadsAsync();
+        Check(queued.Count == 2 && queued.All(d => d.EcId != 0), "full queue detail includes session ECID");
+        await engine.Client.PauseAsync(queued.Select(d => d.Hash).ToArray(), true);
+        Check((await engine.Client.GetDownloadsAsync()).All(d => d.State == 7), "pause several downloads in one EC command");
+        await engine.Client.CancelDownloadsAsync([extraHash]);
+        Check((await engine.Client.GetDownloadsAsync()).Select(d => d.Hash).Single() == hash, "cancel removes one download and keeps the other");
         Check((await engine.Client.RequestAsync(new(0x0a, EcTag.Integer(4, 0)))).Operation == 0x0c, "real stats request");
         await engine.Client.EnableEd2kAsync();
         var prefs = await engine.Client.RequestAsync(new(0x3f, EcTag.Integer(0x1000, 4), EcTag.Integer(4, 2)));
@@ -179,6 +187,7 @@ if (args.Contains("--integration"))
         await restarted.StartAsync(root, profile);
         var persisted = (await restarted.Client.GetDownloadsAsync()).Single(d => d.Hash == hash);
         Check(persisted.Hash == hash && persisted.State == 7, "queue and paused state survive restart");
+        Check(!(await restarted.Client.GetDownloadsAsync()).Any(d => d.Hash == "C448017AAF21D8525FC10AE87AA6729D"), "cancelled download does not return after restart");
         Check((await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.31" && s.Port == 4661), "saved server list survives restart");
         Check(!(await restarted.Client.GetNetworkStateAsync()).Connected && !(await restarted.Client.GetNetworkStateAsync()).Connecting, "restart does not autoconnect");
         Check(File.Exists(Path.Combine(restarted.ProfilePath, "Temp", "001.part.met")), "Windows temporary files use the intended profile directory");

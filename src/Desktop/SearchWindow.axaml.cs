@@ -33,7 +33,7 @@ public partial class SearchWindow : Window
     private void UpdateButtons()
     {
         if (SearchButton == null) return;
-        SearchButton.IsEnabled = available && !busy;
+        SearchButton.IsEnabled = available && !busy && connected;
         StopButton.IsEnabled = available && !busy && searching;
         DownloadButton.IsEnabled = available && !busy && ResultsGrid.SelectedItems.Count > 0;
     }
@@ -96,7 +96,15 @@ public partial class SearchWindow : Window
     internal async Task ExerciseUiAsync()
     {
         for (int i = 0; i < 100 && (!available || busy); i++) await Task.Delay(50);
-        if (!available || !connected) throw new InvalidOperationException("La prueba necesita conexión eD2k.");
+        if (!available) throw new InvalidOperationException("La ventana de búsqueda no está lista.");
+        if (!connected)
+        {
+            if (SearchButton.IsEnabled) throw new InvalidOperationException("Buscar no debe activarse sin eD2k.");
+            if (!NetworkLabel.Text!.Contains("Servidores", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Sin conexión no se indica ir a Servidores.");
+            StatusMessage.Text = "Prueba de interfaz: Buscar visible, sin eD2k. La búsqueda real se cubre en integración controlada.";
+            return;
+        }
         QueryInput.Text = "ubuntu";
         SearchButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await gate.WaitAsync(); gate.Release();

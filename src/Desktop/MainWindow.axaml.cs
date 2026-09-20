@@ -50,7 +50,7 @@ public partial class MainWindow : Window
             ready = true;
             EngineBadge.Text = $"●  aMule {engine.Client.ServerVersion}";
             ConnectionStatus.Text = "Motor autenticado · consultando las redes…";
-            Message.Text = "Perfil aislado listo. Añadir, pausar y reanudar ya funcionan. Al cerrar esta versión, el motor se detiene ordenadamente.";
+            Message.Text = "Perfil aislado listo. Puedes seleccionar varias descargas para pausar, reanudar o cancelar. Al cerrar esta versión, el motor se detiene ordenadamente.";
             AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
@@ -87,7 +87,7 @@ public partial class MainWindow : Window
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
             if (childWindow != null)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI query, real results, filter, selection, stop. Queue insertion covered separately by controlled eD2k integration." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI opened. Disconnected chrome verified when eD2k is down; live results covered by controlled integration." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
                 childWindow.Close();
             }
             Close();
@@ -111,12 +111,19 @@ public partial class MainWindow : Window
         if (rows[0].State == 7) throw new InvalidOperationException("El botón Reanudar no reanudó la cola real.");
         PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
+        LinkInput.Text = "ed2k://|file|Prueba de interfaz - def.txt|3|C448017AAF21D8525FC10AE87AA6729D|/";
+        AddButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await operations.WaitAsync(); operations.Release();
+        if (rows.Count != 2) throw new InvalidOperationException("No se añadieron dos descargas para la selección múltiple.");
+        DownloadsGrid.SelectedItems.Clear();
+        foreach (var row in rows) DownloadsGrid.SelectedItems.Add(row);
+        if (!PauseButton.IsEnabled) throw new InvalidOperationException("Pausar no se habilita con varias filas.");
         FilterInput.Text = "no-coincide-123";
         await WaitForUiAsync(() => rows.Count == 0, "El filtro no excluye filas.");
         FilterInput.Text = "";
-        await WaitForUiAsync(() => rows.Count == 1, "El filtro no restaura filas.");
-        Message.Text = "Prueba de interfaz superada: añadir, pausar, reanudar y filtrar sobre el motor real. Archivo de prueba sin contenido descargado.";
-        File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: UI add, pause, resume, filter. Real EC engine; isolated fixture; no P2P transfer.\n");
+        await WaitForUiAsync(() => rows.Count == 2, "El filtro no restaura filas.");
+        Message.Text = "Prueba de interfaz superada: añadir, pausar, reanudar, filtro y selección múltiple. Cancelar se cubre en las pruebas de integración.";
+        File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: UI add, pause, resume, filter, multi-select. Real EC engine; isolated fixture; cancel covered by integration.\n");
     }
     private static async Task WaitForUiAsync(Func<bool> condition, string error)
     {
@@ -145,7 +152,7 @@ public partial class MainWindow : Window
     private void ApplyFilter()
     {
         if (FilterInput == null) return;
-        string? selected = (DownloadsGrid.SelectedItem as DownloadItem)?.Hash;
+        var selected = SelectedDownloads().Select(d => d.Hash).ToHashSet();
         var filtered = snapshot.Where(d => d.Name.Contains(FilterInput.Text ?? "", StringComparison.OrdinalIgnoreCase)).ToArray();
         var valid = filtered.Select(d => d.Hash).ToHashSet();
         for (int i = rows.Count - 1; i >= 0; i--) if (!valid.Contains(rows[i].Hash)) rows.RemoveAt(i);
@@ -154,15 +161,24 @@ public partial class MainWindow : Window
             int index = -1; for (int i = 0; i < rows.Count; i++) if (rows[i].Hash == item.Hash) { index = i; break; }
             if (index < 0) rows.Add(item); else if (rows[index] != item) rows[index] = item;
         }
-        DownloadsGrid.SelectedItem = rows.FirstOrDefault(d => d.Hash == selected);
+        foreach (var row in rows.Where(d => selected.Contains(d.Hash)))
+            if (!DownloadsGrid.SelectedItems.Contains(row)) DownloadsGrid.SelectedItems.Add(row);
         EmptyState.IsVisible = rows.Count == 0;
         EmptyTitle.Text = snapshot.Count == 0 ? "Tu próxima descarga empieza aquí" : "No hay resultados para este filtro";
+        UpdateActionButtons();
     }
+    private DownloadItem[] SelectedDownloads() => DownloadsGrid.SelectedItems.Cast<DownloadItem>().ToArray();
     private void FilterChanged(object? sender, TextChangedEventArgs e) => ApplyFilter();
-    private void SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void SelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateActionButtons();
+    private void UpdateActionButtons()
     {
         if (PauseButton == null) return;
-        PauseButton.IsEnabled = ResumeButton.IsEnabled = ready && !closing && DownloadsGrid.SelectedItem is DownloadItem;
+        var selected = SelectedDownloads();
+        bool active = ready && !closing && selected.Length > 0;
+        PauseButton.IsEnabled = active && selected.Any(d => d.CanCancel && d.State != 7);
+        ResumeButton.IsEnabled = active && selected.Any(d => d.CanCancel && d.State == 7);
+        CancelButton.IsEnabled = active && selected.Any(d => d.CanCancel);
+        ClearButton.IsEnabled = active && selected.Any(d => d.IsComplete && d.EcId != 0);
     }
     private async Task ActAsync(Func<Task> action, string success)
     {
@@ -182,11 +198,34 @@ public partial class MainWindow : Window
     private void LinkKeyDown(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter) AddLink(sender, new RoutedEventArgs()); }
     private async void PauseSelected(object? sender, RoutedEventArgs e)
     {
-        if (DownloadsGrid.SelectedItem is DownloadItem item) await ActAsync(async () => { await engine.Client.PauseAsync(item.Hash, true, lifetime.Token); }, "Descarga pausada.");
+        var hashes = SelectedDownloads().Where(d => d.CanCancel).Select(d => d.Hash).ToArray();
+        if (hashes.Length > 0) await ActAsync(async () => await engine.Client.PauseAsync(hashes, true, lifetime.Token), hashes.Length == 1 ? "Descarga pausada." : hashes.Length + " descargas pausadas.");
     }
     private async void ResumeSelected(object? sender, RoutedEventArgs e)
     {
-        if (DownloadsGrid.SelectedItem is DownloadItem item) await ActAsync(async () => { await engine.Client.PauseAsync(item.Hash, false, lifetime.Token); }, "Descarga reanudada en la cola.");
+        var hashes = SelectedDownloads().Where(d => d.CanCancel).Select(d => d.Hash).ToArray();
+        if (hashes.Length > 0) await ActAsync(async () => await engine.Client.PauseAsync(hashes, false, lifetime.Token), hashes.Length == 1 ? "Descarga reanudada en la cola." : hashes.Length + " descargas reanudadas.");
+    }
+    private async void CancelSelected(object? sender, RoutedEventArgs e)
+    {
+        var items = SelectedDownloads().Where(d => d.CanCancel).ToArray();
+        if (items.Length == 0) return;
+        var confirm = new ConfirmWindow("Cancelar descargas",
+            items.Length == 1
+                ? $"Se cancelará «{items[0].Name}» y se borrarán sus archivos temporales. Un archivo ya completado no se toca."
+                : $"Se cancelarán {items.Length} descargas incompletas y se borrarán sus archivos temporales. Los completados seleccionados no se tocan.",
+            items.Length == 1 ? "Cancelar descarga" : "Cancelar descargas");
+        await confirm.ShowDialog(this);
+        if (!confirm.Accepted) return;
+        await ActAsync(async () => await engine.Client.CancelDownloadsAsync(items.Select(d => d.Hash).ToArray(), lifetime.Token),
+            items.Length == 1 ? "Descarga cancelada." : items.Length + " descargas canceladas.");
+    }
+    private async void ClearCompletedSelected(object? sender, RoutedEventArgs e)
+    {
+        var items = SelectedDownloads().Where(d => d.IsComplete && d.EcId != 0).ToArray();
+        if (items.Length == 0) { Message.Text = "Selecciona descargas completadas para quitarlas de la lista. El archivo en Incoming se conserva."; return; }
+        await ActAsync(async () => await engine.Client.ClearCompletedAsync(items.Select(d => d.EcId).ToArray(), lifetime.Token),
+            "Quitadas de la lista. Los archivos en Incoming se conservan.");
     }
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await RefreshAsync();
     private async void OpenSearch(object? sender, RoutedEventArgs e)
@@ -213,7 +252,7 @@ public partial class MainWindow : Window
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Cierra y vuelve a abrir para reintentar.";
-        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = false;
+        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = false;
     }
     private async void WindowClosing(object? sender, WindowClosingEventArgs e)
     {

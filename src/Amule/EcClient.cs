@@ -53,7 +53,8 @@ public sealed partial class EcClient : IDisposable
     }
     public async Task<IReadOnlyList<DownloadItem>> GetDownloadsAsync(CancellationToken token = default)
     {
-        var reply = await RequestAsync(new(0x0d, EcTag.Integer(4, 0)), token);
+        // FULL: the partfile tag integer is the session ECID needed to clear completed rows.
+        var reply = await RequestAsync(new(0x0d, EcTag.Integer(4, 2)), token);
         if (reply.Operation != 0x1f) throw new InvalidDataException("Respuesta de cola inesperada.");
         return reply.Tags.Where(t => t.Name == 0x300).Select(DownloadItem.FromTag).ToArray();
     }
@@ -63,19 +64,19 @@ public sealed partial class EcClient : IDisposable
             throw new ArgumentException("Introduce un enlace ed2k de archivo válido.");
         return RequestAsync(new(9, EcTag.Text(0, link)), token);
     }
-    public Task<EcPacket> PauseAsync(string hash, bool paused, CancellationToken token = default) =>
-        RequestAsync(new((byte)(paused ? 0x19 : 0x1a), new EcTag(0x300, 9, Convert.FromHexString(hash))), token);
     public void Dispose() => socket.Dispose();
 }
 
 public sealed class EcCommandException(string message) : Exception(message);
 
-public sealed record DownloadItem(string Hash, string Name, ulong Size, ulong Done, ulong Speed, ulong Sources, byte State)
+public sealed record DownloadItem(string Hash, string Name, ulong Size, ulong Done, ulong Speed, ulong Sources, byte State, ulong EcId)
 {
     public double Progress => Size == 0 ? 0 : Math.Clamp(100d * Done / Size, 0, 100);
     public string ProgressText => $"{Progress:0.0} %";
     public string SizeText => FormatBytes(Size);
     public string SpeedText => Speed == 0 ? "—" : FormatBytes(Speed) + "/s";
+    public bool IsComplete => State == 9;
+    public bool CanCancel => State != 9;
     // Values from aMule 3.0.1 Constants.h (not UI list indexes).
     public string StateText => State switch { 0 => Speed > 0 ? "Descargando" : "En espera", 1 => "En espera", 2 => "Por verificar", 3 => "Verificando", 4 => "Error", 5 => "Sin espacio", 7 => "Pausado", 8 => "Completando", 9 => "Completado", 10 => "Reservando espacio", _ => $"Estado {State}" };
     public static string FormatBytes(ulong bytes) => bytes >= 1073741824 ? $"{bytes / 1073741824d:0.0} GB" : bytes >= 1048576 ? $"{bytes / 1048576d:0.0} MB" : bytes >= 1024 ? $"{bytes / 1024d:0.0} KB" : $"{bytes} B";
@@ -84,6 +85,7 @@ public sealed record DownloadItem(string Hash, string Name, ulong Size, ulong Do
         var hash = tag.Find(0x31e) ?? (tag.Type == 9 ? tag : null);
         if (hash is null || hash.Data.Length != 16) throw new InvalidDataException("Descarga sin hash válido.");
         ulong N(ushort name) => tag.Find(name)?.Number ?? 0;
-        return new(Convert.ToHexString(hash.Data), tag.Find(0x301)?.String ?? "Sin nombre", N(0x303), N(0x306), N(0x307), N(0x30a), (byte)N(0x308));
+        ulong ecId = tag.Type is 2 or 3 or 4 or 5 ? tag.Number : 0;
+        return new(Convert.ToHexString(hash.Data), tag.Find(0x301)?.String ?? "Sin nombre", N(0x303), N(0x306), N(0x307), N(0x30a), (byte)N(0x308), ecId);
     }
 }

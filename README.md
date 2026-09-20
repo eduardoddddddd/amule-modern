@@ -2,11 +2,11 @@
 
 Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC.
 
-**Estado: incremento funcional 0.3.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k y buscar archivos. Kad permanece desactivado. Compartidos, ajustes, bandeja e instalador son trabajo pendiente.
+**Estado: incremento funcional 0.4.0-dev.** Puedes gestionar la cola, conectar a un servidor eD2k y buscar archivos. En Descargas puedes seleccionar varias filas, pausar, reanudar, cancelar incompletas o quitar completados de la lista. Kad permanece desactivado. Compartidos, ajustes, bandeja e instalador son trabajo pendiente.
 
 ## Qué hace hoy
 
-- **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, pausar y reanudar.
+- **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo).
 - **Servidores:** añadir IPv4 o dominio y puerto, guardar, conectar al seleccionado y desconectar. Muestra estado eD2k (desconectado / conectando / conectado) y HighID/LowID.
 - **Buscar:** una búsqueda activa en el servidor actual o global eD2k; resultados con fuentes, filtro, selección múltiple y descarga a la cola.
 
@@ -38,9 +38,9 @@ Esos directorios están excluidos de Git. El perfil contiene credenciales EC y s
 
 ## Validación
 
-`Build.ps1 -Test` comprueba el protocolo EC, autenticación, cola, pausa/reanudación, servidores, un handshake eD2k controlado en este equipo y el ciclo de búsqueda (término enviado, resultado decodificado, alta en la cola y detener conservando resultados). El test necesita una interfaz IPv4 privada activa y deshabilita el filtro LAN únicamente en su perfil desechable.
+`Build.ps1 -Test` comprueba el protocolo EC, autenticación, cola, pausa/reanudación de varias filas, cancelación, servidores, un handshake eD2k controlado en este equipo y el ciclo de búsqueda (término enviado, resultado decodificado, alta en la cola y detener conservando resultados). El test necesita una interfaz IPv4 privada activa y deshabilita el filtro LAN únicamente en su perfil desechable.
 
-La búsqueda y la descarga desde resultados también se han usado contra un servidor eD2k real. Eso no sustituye todavía una prueba formal de integridad (checksum, pausa a mitad y recuperación tras reinicio).
+La búsqueda y la descarga desde resultados también se han usado contra un servidor eD2k real. Eso no sustituye todavía una prueba formal de integridad (checksum independiente, pausa a mitad de una transferencia con datos y recuperación tras reinicio).
 
 Ver [plan](docs/PLAN.md), [estado](docs/STATUS.md) y [referencias](docs/SOURCES.md).
 
