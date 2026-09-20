@@ -21,20 +21,32 @@ public sealed class EngineSession : IAsyncDisposable
     public string TempPath { get; private set; } = "";
     public int Port { get; private set; }
     public int? ProcessId => process is { HasExited: false } ? process.Id : null;
-    public static string FindRepository()
+    public sealed record AppLayout(string Root, string EnginePath)
     {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
-            if (File.Exists(Path.Combine(dir.FullName, "docs", "engine-manifest.json"))) return dir.FullName;
-        throw new DirectoryNotFoundException("Ejecuta esta versión desde el repositorio amule-modern.");
+        public bool IsRepository => File.Exists(Path.Combine(Root, "docs", "engine-manifest.json"));
+    }
+    public static string FindRepository() => FindLayout().Root;
+    public static AppLayout FindLayout() => Locate(AppContext.BaseDirectory);
+    public static AppLayout Locate(string startDirectory)
+    {
+        for (var dir = new DirectoryInfo(Path.GetFullPath(startDirectory)); dir != null; dir = dir.Parent)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "docs", "engine-manifest.json")))
+                return new(dir.FullName, Path.Combine(dir.FullName, "vendor", "amule-3.0.1", "amule-portable-x64", "bin", "amuled.exe"));
+            if (File.Exists(Path.Combine(dir.FullName, "engine-manifest.json")))
+                return new(dir.FullName, Path.Combine(dir.FullName, "engine", "bin", "amuled.exe"));
+        }
+        throw new DirectoryNotFoundException("No se encontró el motor. Ejecuta scripts/Setup.ps1, el paquete portable o la instalación por usuario.");
     }
     public async Task StartAsync(string repository, string profileName, CancellationToken token = default)
     {
         token.ThrowIfCancellationRequested();
         if (process != null) throw new InvalidOperationException("La sesión ya tiene un proceso.");
         if (profileName.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-')) throw new ArgumentException("Perfil inválido.");
-        this.repository = repository;
+        var layout = Locate(repository);
+        this.repository = layout.Root;
         this.profileName = profileName;
-        ProfilePath = Path.Combine(repository, ".local", profileName);
+        ProfilePath = Path.Combine(layout.Root, ".local", profileName);
         Directory.CreateDirectory(ProfilePath);
         if (OperatingSystem.IsWindows())
         {
@@ -89,8 +101,10 @@ public sealed class EngineSession : IAsyncDisposable
         WriteSettings(config, original, settings);
         var probe = new TcpListener(IPAddress.Loopback, Port);
         probe.Start(); probe.Stop();
-        string engine = Path.Combine(repository, "vendor", "amule-3.0.1", "amule-portable-x64", "bin", "amuled.exe");
-        if (!File.Exists(engine)) throw new FileNotFoundException("Ejecuta scripts/Setup.ps1 para obtener el motor.");
+        string engine = layout.EnginePath;
+        if (!File.Exists(engine)) throw new FileNotFoundException(layout.IsRepository
+            ? "Ejecuta scripts/Setup.ps1 para obtener el motor."
+            : "Falta amuled.exe junto a la aplicación (carpeta engine/bin).");
         var start = new ProcessStartInfo(engine) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(engine)!, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("-c"); start.ArgumentList.Add(ProfilePath);
         start.ArgumentList.Add("-o");

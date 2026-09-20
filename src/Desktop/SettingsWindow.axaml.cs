@@ -19,8 +19,49 @@ public partial class SettingsWindow : Window
         StatusMessage.Text = UserFolders.IsIsolatedProfile(Path.GetFileName(engine.ProfilePath))
             ? "Este perfil de prueba usa carpetas aisladas dentro de .local."
             : $"Por defecto: {UserFolders.Incoming()}";
-        Opened += async (_, _) => await RefreshKadAsync();
+        Opened += async (_, _) => { await RefreshLimitsAsync(); await RefreshKadAsync(); };
         Closing += (_, e) => { if (busy) e.Cancel = true; };
+    }
+    private async Task RefreshLimitsAsync()
+    {
+        try
+        {
+            var limits = await engine.Client.GetBandwidthAsync();
+            DownloadLimitInput.Text = limits.DownloadKib.ToString();
+            UploadLimitInput.Text = limits.UploadKib.ToString();
+        }
+        catch (Exception ex)
+        {
+            DownloadLimitInput.Text = "";
+            UploadLimitInput.Text = "";
+            StatusMessage.Text = "No se pudieron leer los límites: " + ex.Message;
+        }
+    }
+    private static uint ParseLimit(string? text, string label)
+    {
+        text = (text ?? "").Trim();
+        if (text.Length == 0) return 0;
+        if (!uint.TryParse(text, out uint value)) throw new ArgumentException($"El límite de {label} debe ser un número entero.");
+        if (value > BandwidthLimits.MaxKib) throw new ArgumentException($"El límite de {label} no puede superar {BandwidthLimits.MaxKib} KiB/s.");
+        return value;
+    }
+    private async void ApplyLimitsClicked(object? sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        busy = true; ApplyLimitsButton.IsEnabled = false; ApplyButton.IsEnabled = false;
+        StatusMessage.Text = "Aplicando límites…";
+        try
+        {
+            await engine.Client.SetBandwidthAsync(ParseLimit(DownloadLimitInput.Text, "bajada"), ParseLimit(UploadLimitInput.Text, "subida"));
+            await RefreshLimitsAsync();
+            StatusMessage.Text = "Límites aplicados en el motor, sin reinicio. 0 es ilimitado.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or EcCommandException or IOException or TimeoutException)
+        {
+            StatusMessage.Text = ex.Message;
+        }
+        catch (Exception ex) { StatusMessage.Text = "No se pudieron aplicar los límites: " + ex.Message; }
+        finally { busy = false; ApplyLimitsButton.IsEnabled = true; ApplyButton.IsEnabled = true; }
     }
     private async Task RefreshKadAsync()
     {
@@ -73,7 +114,7 @@ public partial class SettingsWindow : Window
     private async void ApplyClicked(object? sender, RoutedEventArgs e)
     {
         if (busy) return;
-        busy = true; ApplyButton.IsEnabled = false;
+        busy = true; ApplyButton.IsEnabled = false; ApplyLimitsButton.IsEnabled = false;
         StatusMessage.Text = "Deteniendo el motor y aplicando las carpetas…";
         try
         {
@@ -87,7 +128,7 @@ public partial class SettingsWindow : Window
             StatusMessage.Text = ex.Message;
         }
         catch (Exception ex) { StatusMessage.Text = "No se pudieron aplicar las carpetas: " + ex.Message; }
-        finally { busy = false; ApplyButton.IsEnabled = true; }
+        finally { busy = false; ApplyButton.IsEnabled = true; ApplyLimitsButton.IsEnabled = true; }
     }
     private void OpenIncoming(object? sender, RoutedEventArgs e)
     {
@@ -105,6 +146,8 @@ public partial class SettingsWindow : Window
         if (UserFolders.PathsEqual(IncomingInput.Text!, TempInput.Text!))
             throw new InvalidOperationException("Incoming y tmp no deben coincidir.");
         if (KadStatus == null || KadEnableButton == null) throw new InvalidOperationException("Ajustes no muestra el control de Kad.");
-        StatusMessage.Text = "Prueba de interfaz: rutas de Incoming y tmp visibles, control Kad presente.";
+        if (DownloadLimitInput == null || UploadLimitInput == null || ApplyLimitsButton == null)
+            throw new InvalidOperationException("Ajustes no muestra los límites de ancho de banda.");
+        StatusMessage.Text = "Prueba de interfaz: rutas, límites y control Kad visibles.";
     }
 }

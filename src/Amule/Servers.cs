@@ -87,4 +87,24 @@ public sealed partial class EcClient
         // Pinned aMule disconnects established sessions; it does not cancel connection attempts.
         await RequestAsync(new(0x2e), token);
     }
+    public async Task RemoveServerAsync(ServerItem server, CancellationToken token = default)
+    {
+        var network = await GetNetworkStateAsync(token);
+        if (network.Server?.Endpoint == server.Endpoint && (network.Connected || network.Connecting))
+            await DisconnectServerAsync(token);
+        await RequestAsync(new(0x30, server.ToTag()), token);
+    }
+    public async Task<int> ImportServersAsync(IReadOnlyList<ServerDraft> drafts, CancellationToken token = default)
+    {
+        if (drafts.Count == 0) throw new ArgumentException("La lista no contiene servidores válidos.");
+        if (drafts.Count > ServerListFile.MaxServers) throw new ArgumentException($"Como máximo {ServerListFile.MaxServers} servidores por importación.");
+        var before = (await GetServersAsync(token)).Select(s => s.Endpoint).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        int added = 0;
+        foreach (var draft in drafts)
+        {
+            var item = await AddServerAsync(draft.Address, draft.Port, draft.Name, token);
+            if (before.Add(item.Endpoint)) added++;
+        }
+        return added;
+    }
 }

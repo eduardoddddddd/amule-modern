@@ -115,7 +115,7 @@ public partial class MainWindow : Window
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
             if (childWindow != null)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : !Program.ExerciseUi ? "CAPTURE ONLY: UI not exercised." : Program.ShowSearch ? "PASS: search UI; simulated Kad-only active search retains Stop, survives scope change, stops on network loss. Real search covered separately by integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp and Kad controls." : Program.ShowShared ? "PASS: shared UI removes empty folder through picker and confirmation; directory retained. Incoming and filter verified." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : !Program.ExerciseUi ? "CAPTURE ONLY: UI not exercised." : Program.ShowSearch ? "PASS: search UI; simulated Kad-only active search retains Stop, survives scope change, stops on network loss. Real search covered separately by integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp, bandwidth limits and Kad controls." : Program.ShowShared ? "PASS: shared UI removes empty folder through picker and confirmation; directory retained. Incoming and filter verified." : "PASS: servers UI validation, add, import, remove, duplicate, disconnected state. Real engine.");
                 childWindow.Close();
             }
             Close();
@@ -153,6 +153,13 @@ public partial class MainWindow : Window
         int unfilteredCount = rows.Count;
         DownloadsGrid.SelectedItems.Clear();
         foreach (var row in rows) DownloadsGrid.SelectedItems.Add(row);
+        if (rows.Any(r => r.CanCancel && r.State == 7) && ResumeButton.IsEnabled)
+        {
+            ResumeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await operations.WaitAsync(); operations.Release();
+            DownloadsGrid.SelectedItems.Clear();
+            foreach (var row in rows) DownloadsGrid.SelectedItems.Add(row);
+        }
         if (!PauseButton.IsEnabled) throw new InvalidOperationException("Pausar no se habilita con varias filas.");
         FilterInput.Text = "no-coincide-123";
         await WaitForUiAsync(() => rows.Count == 0, "El filtro no excluye filas.");
@@ -305,7 +312,12 @@ public partial class MainWindow : Window
         await RefreshAsync();
     }
     private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(engine.IncomingPath);
-    private void OpenPlan(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(repository, "docs", "PLAN.md"));
+    private void OpenPlan(object? sender, RoutedEventArgs e)
+    {
+        string plan = Path.Combine(repository, "docs", "PLAN.md");
+        if (File.Exists(plan)) OpenPath(plan);
+        else Message.Text = "Este paquete no incluye el plan de desarrollo.";
+    }
     private void OpenPath(string path)
     {
         try { if (File.Exists(path) || Directory.Exists(path)) Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }

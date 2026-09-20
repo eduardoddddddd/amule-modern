@@ -47,6 +47,24 @@ Reject(badLength, "parent shorter than its children");
 Check(UserFolders.Incoming().Replace('\\', '/').EndsWith("amule-modern/incoming", StringComparison.OrdinalIgnoreCase)
     && UserFolders.Temp().Replace('\\', '/').EndsWith("amule-modern/tmp", StringComparison.OrdinalIgnoreCase),
     "user library lives under Downloads/amule-modern");
+var parsed = ServerListFile.ParseText("# comentario\n203.0.113.41:4661 Nombre\ned2k://|server|203.0.113.42|4242|/\n203.0.113.41:4661 duplicado\n");
+Check(parsed.Count == 2 && parsed[0].Name == "Nombre" && parsed[1].Address == "203.0.113.42" && parsed[1].Port == "4242", "parse text server list and skip duplicates");
+byte[] met = [0x0E, 1, 0, 0, 0, 203, 0, 113, 40, 0x35, 0x12, 0, 0, 0, 0];
+Check(ServerListFile.Parse(met) is [{ Address: "203.0.113.40", Port: "4661" }], "parse minimal server.met");
+bool fileUrl = false, loopUrl = false, emptyList = false;
+try { await ServerListFile.DownloadAsync("file:///C:/servers.txt"); } catch (ArgumentException) { fileUrl = true; }
+try { await ServerListFile.DownloadAsync("http://127.0.0.1/servers.txt"); } catch (ArgumentException) { loopUrl = true; }
+try { ServerListFile.ParseText("   \n# solo comentarios\n"); } catch (ArgumentException) { emptyList = true; }
+Check(fileUrl && loopUrl && emptyList, "reject file URL, localhost URL and empty server list");
+string bundle = Path.Combine(Path.GetTempPath(), "amule-modern-layout-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(Path.Combine(bundle, "engine", "bin"));
+File.WriteAllText(Path.Combine(bundle, "engine-manifest.json"), "{}");
+File.WriteAllBytes(Path.Combine(bundle, "engine", "bin", "amuled.exe"), [0]);
+var bundled = EngineSession.Locate(Path.Combine(bundle, "engine", "bin"));
+Check(string.Equals(bundled.Root, bundle, StringComparison.OrdinalIgnoreCase) && bundled.EnginePath.EndsWith(Path.Combine("engine", "bin", "amuled.exe"), StringComparison.OrdinalIgnoreCase) && !bundled.IsRepository, "bundled layout finds engine next to the app");
+var repoLayout = EngineSession.Locate(EngineSession.FindRepository());
+Check(repoLayout.IsRepository && File.Exists(repoLayout.EnginePath), "repository layout uses vendor amuled");
+Directory.Delete(bundle, true);
 
 // TCP response split into individual bytes, not a single ReadAsync-sized packet.
 var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
@@ -214,6 +232,24 @@ if (args.Contains("--integration"))
         try { await engine.Client.AddServerAsync("127.0.0.1", "70000", "invalid"); } catch (ArgumentException) { invalidPort = true; }
         Check(invalidPort, "reject out-of-range port without changing engine");
         Check(!(await engine.Client.GetNetworkStateAsync()).Connected, "saved server is not connected automatically");
+        int imported = await engine.Client.ImportServersAsync(ServerListFile.ParseText("203.0.113.35:4661 Importado\n203.0.113.31:4661 ya estaba\n"));
+        Check(imported == 1 && (await engine.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35"), "import adds only missing servers");
+        await engine.Client.RemoveServerAsync((await engine.Client.GetServersAsync()).Single(s => s.Address == "203.0.113.35"));
+        Check(!(await engine.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35") && (await engine.Client.GetServersAsync()).Any(s => s.Endpoint == testServer.Endpoint), "remove one server and keep the others");
+        var initialBw = await engine.Client.GetBandwidthAsync();
+        Check(initialBw.DownloadUnlimited && initialBw.UploadUnlimited, "bandwidth starts unlimited");
+        await engine.Client.SetBandwidthAsync(400, 100);
+        var setBw = await engine.Client.GetBandwidthAsync();
+        Check(setBw.DownloadKib == 400 && setBw.UploadKib == 100, "set download and upload limits in KiB/s");
+        var limitStats = await engine.Client.RequestAsync(new(0x0a, EcTag.Integer(4, 0)));
+        Check(limitStats.Find(0x203)?.Number == 400ul * 1024 && limitStats.Find(0x202)?.Number == 100ul * 1024, "stats expose bandwidth limits in bytes/s");
+        await engine.Client.SetBandwidthAsync(100, 2);
+        var ratio = await engine.Client.GetBandwidthAsync();
+        Check(ratio.UploadKib == 2 && ratio.DownloadKib == 6, "engine caps download when upload is below 4 KiB/s");
+        await engine.Client.SetBandwidthAsync(400, 100);
+        bool overLimit = false;
+        try { await engine.Client.SetBandwidthAsync(BandwidthLimits.MaxKib + 1, 0); } catch (ArgumentException) { overLimit = true; }
+        Check(overLimit && (await engine.Client.GetBandwidthAsync()).DownloadKib == 400, "reject bandwidth above the documented cap");
 
         // Controlled eD2k handshake, not a public server or a file-transfer test.
         // Only this disposable test profile permits LAN servers.
@@ -285,6 +321,8 @@ if (args.Contains("--integration"))
         Check(persisted.Hash == hash && persisted.State == 7, "queue and paused state survive restart");
         Check(!(await restarted.Client.GetDownloadsAsync()).Any(d => d.Hash == "C448017AAF21D8525FC10AE87AA6729D"), "cancelled download does not return after restart");
         Check((await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.31" && s.Port == 4661), "saved server list survives restart");
+        Check(!(await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35"), "removed imported server does not return after restart");
+        Check((await restarted.Client.GetBandwidthAsync()) is { DownloadKib: 400, UploadKib: 100 }, "bandwidth limits survive restart");
         Check(!(await restarted.Client.GetNetworkStateAsync()).Connected && !(await restarted.Client.GetNetworkStateAsync()).Connecting, "restart does not autoconnect");
         Check(!(await restarted.Client.GetKadEnabledAsync()) && !(await restarted.Client.GetNetworkStateAsync()).KadRunning, "restart keeps Kad disabled");
         Check((await restarted.Client.GetSharedFilesAsync()).Any(f => f.Name == incomingShare), "incoming shared file survives restart");

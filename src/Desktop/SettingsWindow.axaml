@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.SettingsWindow"
-        Title="Ajustes · aMule Modern" Width="720" Height="640" MinWidth="640" MinHeight="560"
+        Title="Ajustes · aMule Modern" Width="720" Height="780" MinWidth="640" MinHeight="680"
         Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
   <Grid Margin="28" RowDefinitions="Auto,*,Auto,Auto">
     <StackPanel Spacing="7">
-      <TextBlock Text="Carpetas" FontSize="28" FontWeight="SemiBold" />
+      <TextBlock Text="Ajustes" FontSize="28" FontWeight="SemiBold" />
       <TextBlock Text="Las descargas van a tu carpeta Descargas, no al repositorio. El perfil del motor sigue aislado en .local." FontSize="13" Foreground="#8C9DB5" TextWrapping="Wrap" />
     </StackPanel>
     <StackPanel Grid.Row="1" Margin="0,24,0,0" Spacing="18">
@@ -21,7 +21,22 @@
           <Button Grid.Column="2" Content="Elegir…" Click="BrowseTemp" />
         </Grid>
       </StackPanel>
-      <TextBlock Text="Al aplicar se reinicia el motor. No puedes cambiar tmp si hay descargas pendientes, incluidas las pausadas. Los archivos ya completados permanecen en su carpeta anterior." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" LineHeight="20" />
+      <TextBlock Text="Al aplicar carpetas se reinicia el motor. No puedes cambiar tmp si hay descargas pendientes, incluidas las pausadas. Los archivos ya completados permanecen en su carpeta anterior." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" LineHeight="20" />
+      <StackPanel Spacing="8">
+        <TextBlock Text="LÍMITES DE ANCHO DE BANDA (KIB/S)" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
+        <TextBlock Text="0 es ilimitado. Si la subida es muy baja, aMule puede recortar la bajada. No hace falta reiniciar el motor." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" />
+        <Grid ColumnDefinitions="*,14,*">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Bajada" FontSize="12" Foreground="#A6B2C6" />
+            <TextBox x:Name="DownloadLimitInput" PlaceholderText="0 = ilimitado" MaxLength="6" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6">
+            <TextBlock Text="Subida" FontSize="12" Foreground="#A6B2C6" />
+            <TextBox x:Name="UploadLimitInput" PlaceholderText="0 = ilimitado" MaxLength="6" />
+          </StackPanel>
+        </Grid>
+        <Button x:Name="ApplyLimitsButton" Content="Aplicar límites" Click="ApplyLimitsClicked" HorizontalAlignment="Left" />
+      </StackPanel>
       <StackPanel Spacing="8">
         <TextBlock Text="RED KAD" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
         <TextBlock x:Name="KadStatus" Text="Kad está desactivado. No se abre el cortafuegos." FontSize="12" Foreground="#ABBAD0" TextWrapping="Wrap" />

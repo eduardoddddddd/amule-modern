@@ -1,8 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.ServersWindow"
-        Title="Servidores eD2k · aMule Modern" Width="970" Height="660" MinWidth="860" MinHeight="600" Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
+        Title="Servidores eD2k · aMule Modern" Width="1080" Height="700" MinWidth="960" MinHeight="620" Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
   <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
     <Grid ColumnDefinitions="*,Auto">
-      <StackPanel Spacing="7"><TextBlock Text="Servidores" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Añade un servidor eD2k y elige a cuál conectarte." FontSize="13" Foreground="#8C9DB5"/></StackPanel>
+      <StackPanel Spacing="7"><TextBlock Text="Servidores" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Añade, quita o importa servidores eD2k. Conectar es una acción aparte." FontSize="13" Foreground="#8C9DB5"/></StackPanel>
       <Border Grid.Column="1" Background="#1B2C3B" CornerRadius="16" Padding="14,9" VerticalAlignment="Top"><TextBlock x:Name="NetworkBadge" Text="Consultando…" Foreground="#80DBC6" FontSize="12"/></Border>
     </Grid>
     <Border Grid.Row="1" Margin="0,23,0,16" Padding="18" Background="#192637" CornerRadius="10">
@@ -12,7 +12,12 @@
           <StackPanel Grid.Column="2" Spacing="6"><TextBlock Text="IP o dominio" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="AddressInput" PlaceholderText="Dirección del servidor" MaxLength="253"/></StackPanel>
           <StackPanel Grid.Column="4" Spacing="6"><TextBlock Text="Puerto TCP" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="PortInput" Text="4661" MaxLength="5"/></StackPanel>
         </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right"><Button x:Name="AddOnlyButton" Content="Añadir" Click="AddOnly" IsEnabled="False"/><Button x:Name="AddConnectButton" Classes="primary" Content="Añadir y conectar" Click="AddAndConnect" IsEnabled="False"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+          <TextBox x:Name="ImportUrlInput" Width="280" PlaceholderText="https://… lista de servidores" MaxLength="500"/>
+          <Button x:Name="ImportUrlButton" Content="Importar URL" Click="ImportUrl" IsEnabled="False"/>
+          <Button x:Name="AddOnlyButton" Content="Añadir" Click="AddOnly" IsEnabled="False"/>
+          <Button x:Name="AddConnectButton" Classes="primary" Content="Añadir y conectar" Click="AddAndConnect" IsEnabled="False"/>
+        </StackPanel>
       </StackPanel>
     </Border>
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,12"><TextBlock Text="SERVIDORES GUARDADOS" Foreground="#8C9DB5" LetterSpacing="1" FontSize="11" VerticalAlignment="Center"/><Button Grid.Column="1" x:Name="RefreshServersButton" Content="↻  Actualizar" Click="RefreshClicked" IsEnabled="False"/></Grid>
@@ -32,7 +37,12 @@
     </Border>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,14,0,14">
       <StackPanel VerticalAlignment="Center" Spacing="4"><TextBlock x:Name="CurrentServer" Text="Sin servidor conectado" FontSize="12"/><TextBlock Text="La lista se guarda en el perfil de aMule." FontSize="11" Foreground="#8C9DB5"/></StackPanel>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"><Button x:Name="DisconnectButton" Content="Desconectar" Click="Disconnect" IsEnabled="False"/><Button x:Name="ConnectButton" Classes="primary" Content="Conectar al seleccionado" Click="ConnectSelected" IsEnabled="False"/></StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+        <Button x:Name="RemoveButton" Content="Quitar" Click="RemoveSelected" IsEnabled="False"/>
+        <Button x:Name="ImportFileButton" Content="Importar archivo…" Click="ImportFile" IsEnabled="False"/>
+        <Button x:Name="DisconnectButton" Content="Desconectar" Click="Disconnect" IsEnabled="False"/>
+        <Button x:Name="ConnectButton" Classes="primary" Content="Conectar al seleccionado" Click="ConnectSelected" IsEnabled="False"/>
+      </StackPanel>
     </Grid>
     <Border Grid.Row="5" Background="#192637" CornerRadius="8" Padding="13"><TextBlock x:Name="ServerMessage" Text="Cargando servidores…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12"/></Border>
   </Grid>
