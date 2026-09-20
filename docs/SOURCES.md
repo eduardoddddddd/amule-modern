@@ -23,3 +23,12 @@ Código oficial fijado a 3.0.1:
 - https://github.com/amule-org/amule/blob/3.0.1/src/Preferences.cpp — claves y valores predeterminados del perfil.
 
 Las pruebas de ejecución se recogen en STATUS.md; la lectura de fuentes no sustituye las pruebas P2P pendientes.
+
+## Búsqueda — verificación de código 20/09/2026
+
+Código oficial fijado a 3.0.1:
+- https://github.com/amule-org/amule/blob/3.0.1/src/ExternalConn.cpp — EC_SEARCH_START (0x26), EC_SEARCH_STOP (0x27), EC_SEARCH_RESULTS (0x28) y EC_SEARCH_DOWNLOAD (0x2a).
+- https://github.com/amule-org/amule/blob/3.0.1/src/libs/ec/cpp/ECCodes.h — etiquetas de consulta (0x701 tipo, 0x702 texto) y de resultado (0x700, 0x301, 0x303, 0x30a, 0x30d).
+- https://github.com/amule-org/amule/blob/3.0.1/src/SearchList.cpp — una búsqueda activa en el motor; arrancar otra detiene la anterior.
+
+La implementación anuncia solo servidor local o global eD2k. Kad sigue desactivado en el perfil. Una búsqueda de uso real no sustituye la prueba formal de integridad de transferencia.

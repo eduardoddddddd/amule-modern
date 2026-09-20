@@ -207,4 +207,4 @@ Este documento contiene decisiones propuestas y verificaciones documentales real
 
 La consulta a TDKop `joplin_status` devolvió conexión rechazada por Web Clipper en `127.0.0.1:41184`. La copia a la libreta Codex queda pendiente; no se ha utilizado joplin-bridge ni se ha accedido a SQLite para esta escritura.
 
-Actualización 20/09/2026: implementación 0.2.0-dev en curso completada para Descargas y Servidores. El estado ejecutado y sus límites están en STATUS.md; el texto anterior conserva la planificación original.
+Actualización 20/09/2026: 0.2.0-dev completó Descargas y Servidores. 0.3.0-dev añade búsqueda eD2k y descarga desde resultados. El estado ejecutado y sus límites están en STATUS.md; el texto anterior conserva la planificación original.

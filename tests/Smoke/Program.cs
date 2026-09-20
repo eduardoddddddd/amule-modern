@@ -3,6 +3,23 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 
+if (args.Contains("--live-search"))
+{
+    var config = File.ReadAllLines(Path.Combine(EngineSession.FindRepository(), ".local", "desktop", "amule.conf"));
+    using var live = new EcClient();
+    await live.ConnectAsync(int.Parse(config.Single(l => l.StartsWith("ECPort="))[7..]), config.Single(l => l.StartsWith("ECPassword="))[11..]);
+    var network = await live.GetNetworkStateAsync();
+    Console.WriteLine($"NETWORK: {network.Ed2kText}; SERVER: {network.Server?.Endpoint}");
+    await live.StartSearchAsync("ubuntu");
+    for (int i = 0; i < 12; i++)
+    {
+        await Task.Delay(1000);
+        var results = await live.GetSearchResultsAsync();
+        if (results.Count > 0) { Console.WriteLine($"LIVE SEARCH: {results.Count} results; first: {results[0].Name}; sources: {results[0].Sources}"); await live.StopSearchAsync(); return; }
+    }
+    throw new Exception("El servidor no devolvió resultados en 12 segundos.");
+}
+
 int passed = 0;
 void Check(bool condition, string name)
 {
@@ -120,6 +137,37 @@ if (args.Contains("--integration"))
             NetworkState? connected = null;
             for (int i = 0; i < 40; i++) { connected = await engine.Client.GetNetworkStateAsync(); if (connected.Connected) break; await Task.Delay(50); }
             Check(connected is { Connected: true, ClientId: 0x12000001 } && connected.Server?.Port == ed2kPort, "confirmed eD2k connection and HighID decoded");
+            await engine.Client.StartSearchAsync("amule-modern-search-test");
+            byte[] searchRequest;
+            do
+            {
+                await peerStream.ReadExactlyAsync(ed2kHeader, handshakeTimeout.Token);
+                searchRequest = new byte[BinaryPrimitives.ReadUInt32LittleEndian(ed2kHeader.AsSpan(1))];
+                await peerStream.ReadExactlyAsync(searchRequest, handshakeTimeout.Token);
+            } while (searchRequest[0] != 0x16);
+            Check(System.Text.Encoding.UTF8.GetString(searchRequest).Contains("amule-modern-search-test"), "real eD2k server receives search terms");
+            const string searchHash = "B448017AAF21D8525FC10AE87AA6729D";
+            using var resultBytes = new MemoryStream();
+            using (var writer = new BinaryWriter(resultBytes, System.Text.Encoding.UTF8, true))
+            {
+                writer.Write((byte)0x33); writer.Write(1u); writer.Write(Convert.FromHexString(searchHash));
+                writer.Write(0u); writer.Write((ushort)0); writer.Write(3u);
+                writer.Write((byte)2); writer.Write((ushort)1); writer.Write((byte)1);
+                var nameBytes = System.Text.Encoding.UTF8.GetBytes("amule-modern-search-test.txt"); writer.Write((ushort)nameBytes.Length); writer.Write(nameBytes);
+                writer.Write((byte)3); writer.Write((ushort)1); writer.Write((byte)2); writer.Write(3u);
+                writer.Write((byte)3); writer.Write((ushort)1); writer.Write((byte)0x15); writer.Write(7u);
+            }
+            byte[] resultHeader = new byte[5]; resultHeader[0] = 0xe3;
+            BinaryPrimitives.WriteUInt32LittleEndian(resultHeader.AsSpan(1), (uint)resultBytes.Length);
+            await peerStream.WriteAsync(resultHeader, handshakeTimeout.Token); await peerStream.WriteAsync(resultBytes.ToArray(), handshakeTimeout.Token);
+            IReadOnlyList<SearchResult> searchResults = [];
+            for (int i = 0; i < 40; i++) { searchResults = await engine.Client.GetSearchResultsAsync(); if (searchResults.Count > 0) break; await Task.Delay(50); }
+            Check(searchResults.Single() is { Name: "amule-modern-search-test.txt", Size: 3, Sources: 7 } && searchResults[0].Hash == searchHash, "real server result decoded through engine EC");
+            await engine.Client.DownloadSearchResultAsync(searchHash);
+            Check((await engine.Client.GetDownloadsAsync()).Any(d => d.Hash == searchHash), "search result added to real download queue");
+            await engine.Client.PauseAsync(searchHash, true);
+            await engine.Client.StopSearchAsync();
+            Check((await engine.Client.GetSearchResultsAsync()).Count == 1, "stop search preserves received results");
             await engine.Client.DisconnectServerAsync();
             Check(!(await engine.Client.GetNetworkStateAsync()).Connected, "disconnect established eD2k session");
         }
@@ -129,7 +177,7 @@ if (args.Contains("--integration"))
     await using (var restarted = new EngineSession())
     {
         await restarted.StartAsync(root, profile);
-        var persisted = (await restarted.Client.GetDownloadsAsync()).Single();
+        var persisted = (await restarted.Client.GetDownloadsAsync()).Single(d => d.Hash == hash);
         Check(persisted.Hash == hash && persisted.State == 7, "queue and paused state survive restart");
         Check((await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.31" && s.Port == 4661), "saved server list survives restart");
         Check(!(await restarted.Client.GetNetworkStateAsync()).Connected && !(await restarted.Client.GetNetworkStateAsync()).Connecting, "restart does not autoconnect");

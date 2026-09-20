@@ -35,24 +35,44 @@ public partial class MainWindow : Window
         {
             repository = EngineSession.FindRepository();
             await engine.StartAsync(repository, Program.CapturePath == null ? "desktop" : "capture", lifetime.Token);
+            if (Program.ConnectServer is { } endpoint)
+            {
+                var parts = endpoint.Split(':');
+                if (parts.Length != 2) throw new ArgumentException("Servidor inválido: usa IPv4:puerto.");
+                var server = await engine.Client.AddServerAsync(parts[0], parts[1], "");
+                await engine.Client.ConnectServerAsync(server);
+                for (int i = 0; i < 30; i++)
+                {
+                    if ((await engine.Client.GetNetworkStateAsync()).Connected) break;
+                    await Task.Delay(500);
+                }
+            }
             ready = true;
             EngineBadge.Text = $"●  aMule {engine.Client.ServerVersion}";
             ConnectionStatus.Text = "Motor autenticado · consultando las redes…";
             Message.Text = "Perfil aislado listo. Añadir, pausar y reanudar ya funcionan. Al cerrar esta versión, el motor se detiene ordenadamente.";
-            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = true;
+            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
         finally { operations.Release(); }
         if (ready) { await RefreshAsync(); timer.Start(); }
         if (Program.CapturePath != null)
         {
-            ServersWindow? serversWindow = null;
+            Window? childWindow = null;
             try
             {
                 if (!ready) throw new InvalidOperationException("La captura no pudo conectar al motor.");
-                if (Program.ShowServers)
+                if (Program.ShowSearch)
                 {
-                    serversWindow = new ServersWindow(engine.Client);
+                    var searchWindow = new SearchWindow(engine.Client);
+                    childWindow = searchWindow;
+                    searchWindow.Show(this);
+                    if (Program.ExerciseUi) await searchWindow.ExerciseUiAsync();
+                }
+                else if (Program.ShowServers)
+                {
+                    var serversWindow = new ServersWindow(engine.Client);
+                    childWindow = serversWindow;
                     serversWindow.Show(this);
                     if (Program.ExerciseUi) await serversWindow.ExerciseUiAsync();
                 }
@@ -60,19 +80,20 @@ public partial class MainWindow : Window
             }
             catch (Exception ex) { Program.CaptureFailed = true; Message.Text = "Prueba visual fallida: " + ex.Message; }
             await Task.Delay(1000);
-            Window target = serversWindow ?? (Window)this;
+            Window target = childWindow ?? (Window)this;
             using var bitmap = new RenderTargetBitmap(new PixelSize((int)target.Bounds.Width, (int)target.Bounds.Height), new Vector(96, 96));
             bitmap.Render(target);
             Directory.CreateDirectory(Path.GetDirectoryName(Program.CapturePath)!);
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
-            if (serversWindow != null)
+            if (childWindow != null)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: servers UI" : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
-                serversWindow.Close();
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : Program.ShowSearch ? "PASS: search UI query, real results, filter, selection, stop. Queue insertion covered separately by controlled eD2k integration." : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                childWindow.Close();
             }
             Close();
         }
         else if (ready && Program.ShowServers) OpenServers(this, new RoutedEventArgs());
+        else if (ready && Program.ShowSearch) OpenSearch(this, new RoutedEventArgs());
     }
     private async Task ExerciseUiAsync()
     {
@@ -168,6 +189,12 @@ public partial class MainWindow : Window
         if (DownloadsGrid.SelectedItem is DownloadItem item) await ActAsync(async () => { await engine.Client.PauseAsync(item.Hash, false, lifetime.Token); }, "Descarga reanudada en la cola.");
     }
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await RefreshAsync();
+    private async void OpenSearch(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || closing) return;
+        await new SearchWindow(engine.Client).ShowDialog(this);
+        await RefreshAsync();
+    }
     private async void OpenServers(object? sender, RoutedEventArgs e)
     {
         if (!ready || closing) return;
@@ -186,7 +213,7 @@ public partial class MainWindow : Window
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Cierra y vuelve a abrir para reintentar.";
-        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = false;
+        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = false;
     }
     private async void WindowClosing(object? sender, WindowClosingEventArgs e)
     {
