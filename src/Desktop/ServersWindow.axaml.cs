@@ -13,7 +13,7 @@ public partial class ServersWindow : UserControl
     private readonly ObservableCollection<ServerItem> servers = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool busy, available, isClosed, ed2kReady;
+    private bool busy, available, isClosed;
     private NetworkState? state;
     private string? requestedEndpoint;
     public ServersWindow()
@@ -26,16 +26,10 @@ public partial class ServersWindow : UserControl
         AttachedToVisualTree += async (_, _) =>
         {
             isClosed = false;
-            if (!ed2kReady)
-            {
-                await ExecuteAsync(async () => { await client.EnableEd2kAsync(); available = true; ed2kReady = true; },
-                    "Listo. Añadir guarda el servidor; la conexión comienza solo al pulsar Conectar.");
-            }
-            else
-            {
-                await ExecuteAsync(async () => { available = true; }, null);
-            }
+            await ExecuteAsync(async () => { available = true; }, null);
             if (available && !isClosed) timer.Start();
+            if (available && servers.Count == 0)
+                ServerMessage.Text = "Lista vacía. Importa un server.met y usa «Salir y detener» para guardarla; un cierre forzado no escribe server.met.";
         };
         DetachedFromVisualTree += (_, _) => { timer.Stop(); isClosed = true; };
         timer.Tick += async (_, _) =>

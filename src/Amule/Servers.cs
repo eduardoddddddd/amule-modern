@@ -53,7 +53,13 @@ public sealed partial class EcClient
     {
         var packet = await RequestAsync(new(0x2c, EcTag.Integer(4, 2)), token);
         if (packet.Operation != 0x2d) throw new InvalidDataException("Respuesta de servidores inesperada.");
-        return packet.Tags.Where(t => t.Name == 0x500).Select(ServerItem.FromTag).ToArray();
+        var result = new List<ServerItem>();
+        foreach (var tag in packet.Tags.Where(t => t.Name == 0x500))
+        {
+            try { result.Add(ServerItem.FromTag(tag)); }
+            catch (InvalidDataException) { /* skip a malformed EC server row */ }
+        }
+        return result;
     }
     public async Task<NetworkState> GetNetworkStateAsync(CancellationToken token = default)
     {

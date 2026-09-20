@@ -1,11 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="AmuleModern.Desktop.SearchWindow">
-  <Grid Margin="28,24" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+  <Grid Margin="28,24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
     <StackPanel Spacing="4">
       <TextBlock Text="Buscar" FontSize="26" FontWeight="SemiBold"/>
       <TextBlock x:Name="NetworkLabel" Text="Consultando conexión…" Classes="muted" FontSize="13"/>
     </StackPanel>
-    <Grid Grid.Row="1" ColumnDefinitions="*,12,180,12,Auto,8,Auto" Margin="0,20,0,14">
+    <Grid Grid.Row="1" ColumnDefinitions="*,12,180,12,Auto,8,Auto" Margin="0,20,0,10">
       <TextBox x:Name="QueryInput" PlaceholderText="Nombre del archivo…" MaxLength="512" KeyDown="QueryKeyDown"/>
       <ComboBox x:Name="ScopeInput" Grid.Column="2" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="ScopeChanged">
         <ComboBoxItem Content="Servidor actual"/>
@@ -15,11 +15,14 @@
       <Button x:Name="SearchButton" Grid.Column="4" Content="Buscar" Classes="primary" Click="SearchClicked" IsEnabled="False"/>
       <Button x:Name="StopButton" Grid.Column="6" Content="Detener" Click="StopClicked" IsEnabled="False"/>
     </Grid>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,10">
+      <StackPanel x:Name="TabBar" Orientation="Horizontal" Spacing="6"/>
+    </ScrollViewer>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
       <TextBlock x:Name="ResultCount" Text="RESULTADOS" Classes="section" VerticalAlignment="Center"/>
-      <TextBox x:Name="FilterInput" Grid.Column="1" PlaceholderText="Filtrar resultados…" Width="240" TextChanged="FilterChanged"/>
+      <TextBox x:Name="FilterInput" Grid.Column="1" PlaceholderText="Filtrar esta pestaña…" Width="240" TextChanged="FilterChanged"/>
     </Grid>
-    <Border Grid.Row="3" Classes="card" ClipToBounds="True">
+    <Border Grid.Row="4" Classes="card" ClipToBounds="True">
       <Grid>
         <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended"
                   SelectionChanged="SelectionChanged" DoubleTapped="ResultDoubleTapped" HeadersVisibility="Column" CanUserSortColumns="True">
@@ -30,15 +33,15 @@
             <DataGridTextColumn Header="COMPLETAS" Binding="{Binding CompleteSources}" Width="100"/>
           </DataGrid.Columns>
         </DataGrid>
-        <TextBlock x:Name="EmptyResults" Text="Escribe un nombre y pulsa Buscar." Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+        <TextBlock x:Name="EmptyResults" Text="Escribe un nombre y pulsa Buscar. Cada búsqueda se guarda en una pestaña." Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" TextAlignment="Center"/>
       </Grid>
     </Border>
-    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12">
+    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12">
       <Button Content="Ir a descargas" Click="ShowDownloads"/>
       <Button x:Name="DownloadButton" Content="Descargar seleccionados" Classes="primary" Click="DownloadClicked" IsEnabled="False"/>
     </StackPanel>
-    <Border Grid.Row="5" Classes="panel" Padding="14,10">
-      <TextBlock x:Name="StatusMessage" Text="Los resultados se actualizarán mientras buscas." TextWrapping="Wrap" Classes="muted" FontSize="12"/>
+    <Border Grid.Row="6" Classes="panel" Padding="14,10">
+      <TextBlock x:Name="StatusMessage" Text="Cada búsqueda abre una pestaña. Solo una está activa en el motor; las anteriores quedan como instantánea." TextWrapping="Wrap" Classes="muted" FontSize="12"/>
     </Border>
   </Grid>
 </UserControl>

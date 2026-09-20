@@ -2,13 +2,13 @@
 
 Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC.
 
-**Estado: incremento funcional 0.9.0-dev.** Puedes gestionar la cola, buscar, ver compartidos, activar Kad, limitar el ancho de banda e importar o quitar servidores. La X oculta a la bandeja; «Salir y detener» cierra aMule. Hay ZIP portable e instalador por usuario.
+**Estado: incremento funcional 0.9.2-dev.** Una sola ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores con nombre, ZIP portable e instalador por usuario. La X oculta a la bandeja; «Salir y detener» cierra aMule y guarda la lista de servidores.
 
 ## Qué hace hoy
 
 - **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo).
 - **Servidores:** añadir IPv4 o dominio y puerto, quitar, importar desde archivo (texto o `server.met`) o URL http/https, conectar y desconectar. Muestra estado eD2k y HighID/LowID. Importar no activa la descarga automática de listas al arrancar.
-- **Buscar:** una búsqueda activa en el servidor actual o global eD2k; resultados con fuentes, filtro, selección múltiple y descarga a la cola.
+- **Buscar:** una búsqueda activa en el servidor actual, global eD2k o Kad; cada búsqueda se guarda en una pestaña para volver a ella. Resultados con fuentes, filtro, selección múltiple y descarga a la cola.
 - **Ajustes:** Incoming, tmp, límites de bajada/subida (KiB/s, 0 = ilimitado) y Kad. Por defecto `%USERPROFILE%\Downloads\amule-modern\incoming` y `tmp`. Activar Kad no abre el cortafuegos. Si la subida es muy baja, aMule puede recortar la bajada.
 - **Compartidos:** lista lo que el motor ofrece. Incoming se comparte solo; puedes añadir o quitar carpetas extra.
 

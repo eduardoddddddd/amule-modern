@@ -95,6 +95,8 @@ public sealed class EngineSession : IAsyncDisposable
         {
             ["ConnectToED2K"] = "1", ["Autoconnect"] = "0", ["Reconnect"] = "0",
             ["Ed2kServersUrl"] = "", ["Serverlist"] = "0", ["NewVersionCheck"] = "0",
+            ["RemoveDeadServer"] = "0", ["IPFilterAutoLoad"] = "0",
+            ["AddServerListFromServer"] = "0", ["AddServerListFromClient"] = "0",
             ["IncomingDir"] = UserFolders.ForConfig(IncomingPath),
             ["TempDir"] = UserFolders.ForConfig(TempPath)
         };
@@ -116,7 +118,7 @@ public sealed class EngineSession : IAsyncDisposable
             token.ThrowIfCancellationRequested();
             if (process.HasExited) throw new IOException($"amuled terminó ({process.ExitCode}). Revisa el logfile del perfil.");
             Client.Dispose(); Client = new EcClient();
-            try { await Client.ConnectAsync(Port, hash, token); return; }
+            try { await Client.ConnectAsync(Port, hash, token); await Client.EnableEd2kAsync(token); return; }
             catch (SocketException) { await Task.Delay(200, token); }
         }
         throw new TimeoutException("amuled no abrió la conexión EC a tiempo.");
