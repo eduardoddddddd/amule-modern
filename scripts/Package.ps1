@@ -22,6 +22,10 @@ Set-Content -LiteralPath (Join-Path $portable 'Iniciar.cmd') -Value "@echo off`r
 if (-not (Test-Path -LiteralPath (Join-Path $portable 'AmuleModern.exe'))) { throw 'El paquete portable no contiene AmuleModern.exe.' }
 if (-not (Test-Path -LiteralPath (Join-Path $portable 'engine\bin\amuled.exe'))) { throw 'El paquete portable no contiene el motor.' }
 if (-not (Test-Path -LiteralPath (Join-Path $portable 'engine-manifest.json'))) { throw 'Falta engine-manifest.json en el paquete portable.' }
+$inventory = @(Get-ChildItem -LiteralPath $portable -Recurse -File -Force | ForEach-Object {
+    [ordered]@{ path = $_.FullName.Substring($portable.Length + 1); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
+})
+[ordered]@{ appId = 'AmuleModern'; schema = 1; files = $inventory } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $portable 'installation-manifest.json') -Encoding UTF8
 if ($Zip) {
     $zipPath = Join-Path $repoPath 'artifacts\AmuleModern-portable-win-x64.zip'
     if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }

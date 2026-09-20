@@ -109,6 +109,8 @@ public partial class ServersWindow : Window
     }
     private async void ImportFile(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Importar lista de servidores",
@@ -122,7 +124,9 @@ public partial class ServersWindow : Window
         if (files.Count == 0) return;
         string? path = files[0].TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path)) { ServerMessage.Text = "No se pudo leer esa ruta."; return; }
-        await ImportBytesAsync(File.ReadAllBytes(path));
+        await ImportSourceAsync(() => ServerListFile.ReadFileAsync(path));
+        }
+        catch (Exception ex) { ServerMessage.Text = "No se pudo abrir la lista: " + ex.Message; }
     }
     private static string ImportMessage(int added) => added == 0
         ? "Ningún servidor nuevo: las entradas ya estaban en la lista."
@@ -130,18 +134,22 @@ public partial class ServersWindow : Window
     private async void ImportUrl(object? sender, RoutedEventArgs e)
     {
         string url = ImportUrlInput.Text ?? "";
+        await ImportSourceAsync(() => ServerListFile.DownloadAsync(url));
+    }
+    private Task ImportBytesAsync(byte[] data) => ImportSourceAsync(() => Task.FromResult(data));
+    private async Task ImportSourceAsync(Func<Task<byte[]>> read)
+    {
         string? result = null;
         await ExecuteAsync(async () =>
         {
-            byte[] data = await ServerListFile.DownloadAsync(url);
+            byte[] data;
+            try { data = await read(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Net.Http.HttpRequestException or OperationCanceledException)
+            { throw new ArgumentException("No se pudo leer la lista (archivo, conexión o plazo de 15 s): " + ex.Message, ex); }
+            // Only acquisition errors are translated. EC transport failures still disable
+            // the disconnected client and cannot be mistaken for an HTTP/file failure.
             result = ImportMessage(await client.ImportServersAsync(ServerListFile.Parse(data)));
-        }, "Importación desde URL terminada.");
-        if (result != null && available) ServerMessage.Text = result;
-    }
-    private async Task ImportBytesAsync(byte[] data)
-    {
-        string? result = null;
-        await ExecuteAsync(async () => { result = ImportMessage(await client.ImportServersAsync(ServerListFile.Parse(data))); }, "Importación de archivo terminada.");
+        }, "Importación terminada.");
         if (result != null && available) ServerMessage.Text = result;
     }
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await ExecuteAsync(() => Task.CompletedTask, "Lista actualizada.");
@@ -150,6 +158,15 @@ public partial class ServersWindow : Window
     {
         for (int i = 0; i < 100 && (!available || busy); i++) await Task.Delay(50);
         if (!available || busy) throw new InvalidOperationException("La ventana de servidores no está lista.");
+        foreach (Exception failure in new Exception[] { new System.Net.Http.HttpRequestException("HTTP 404"), new UnauthorizedAccessException("Access denied"), new OperationCanceledException("deadline") })
+        {
+            await ImportSourceAsync(() => Task.FromException<byte[]>(failure));
+            if (!available || !AddOnlyButton.IsEnabled || !ImportUrlButton.IsEnabled)
+                throw new InvalidOperationException("Un error de importación deshabilitó la ventana o el motor.");
+        }
+        await ImportSourceAsync(() => ServerListFile.ReadFileAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing.txt")));
+        if (!available || !RefreshServersButton.IsEnabled) throw new InvalidOperationException("Un archivo desaparecido deshabilitó la conexión EC.");
+        await client.GetNetworkStateAsync();
         NameInput.Text = "Servidor de prueba · sin conexión";
         AddressInput.Text = "203.0.113.32"; PortInput.Text = "70000";
         AddOnlyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

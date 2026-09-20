@@ -31,7 +31,7 @@ El SDK se instala en `.tools`, sin cambiar el SDK global. `scripts/Build.ps1 -Pu
 .\scripts\Install.ps1
 ```
 
-El ZIP queda en `artifacts/AmuleModern-portable-win-x64.zip` e incluye `amuled` y `engine-manifest.json`. La instalación por usuario copia a `%LOCALAPPDATA%\AmuleModern` y crea un acceso en el menú Inicio. No pide administrador. Desinstalar conserva Incoming/tmp y, salvo `-RemoveProfile`, el perfil `.local`.
+El ZIP queda en `artifacts/AmuleModern-portable-win-x64.zip` e incluye `amuled`, `engine-manifest.json` e `installation-manifest.json` (inventario SHA-256). La instalación por usuario copia a `%LOCALAPPDATA%\AmuleModern` y crea un acceso en el menú Inicio. No pide administrador. Desinstalar solo quita ficheros del inventario sin modificar; conserva Incoming/tmp, ficheros ajenos/modificados y, salvo `-RemoveProfile`, el perfil `.local`. El `Uninstall.ps1` del portable actúa sobre su propia carpeta.
 
 La X oculta la ventana en la bandeja; las transferencias continúan. «Salir y detener» cierra el motor por EC. Una segunda ventana avisa a la ya abierta y puede entregar un enlace `ed2k://`. No se adjunta a procesos ajenos. aMule para Windows tampoco permite dos `amuled` a la vez, aunque los perfiles sean distintos: cierra la app antes de ejecutar pruebas.
 
@@ -48,7 +48,7 @@ Esos directorios (salvo Descargas) están excluidos de Git. El perfil contiene c
 
 ## Validación
 
-`Build.ps1 -Test` comprueba el protocolo EC, autenticación, cola, pausa/reanudación, cancelación, servidores (añadir, importar, quitar), límites de ancho de banda, un handshake eD2k controlado en este equipo y el ciclo de búsqueda. Los perfiles de prueba no escriben en tu carpeta Descargas. El test necesita una interfaz IPv4 privada activa.
+`Build.ps1 -Test` comprueba el protocolo EC, autenticación, cola, pausa/reanudación, cancelación, servidores (añadir, importar, quitar), límites de ancho de banda (incl. valores altos), import HTTP/archivo acotado, un handshake eD2k controlado en este equipo y el ciclo de búsqueda. `tests/Install.Tests.ps1` y `tests/Uninstall.Tests.ps1` ejercitan el empaquetado seguro. Los perfiles de prueba no escriben en tu carpeta Descargas. El test necesita una interfaz IPv4 privada activa.
 
 La búsqueda y una descarga completa se han usado contra un servidor eD2k real. No hay todavía una prueba automatizada de checksum independiente ni de recuperación a mitad de transferencia.
 

@@ -55,32 +55,61 @@ public static class ServerListFile
     }
     public static async Task<byte[]> DownloadAsync(string url, CancellationToken token = default)
     {
-        url = url.Trim();
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        using var http = new HttpClient(handler);
+        return await DownloadAsync(url, http, TimeSpan.FromSeconds(15), token);
+    }
+    // Injectable transport permits deterministic HTTP failure/stream tests without public servers.
+    public static async Task<byte[]> DownloadAsync(string url, HttpClient http, TimeSpan timeout, CancellationToken token = default)
+    {
+        Uri uri = ValidateUrl(url.Trim());
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(timeout);
+        for (int hop = 0; hop < 5; hop++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            request.Headers.UserAgent.ParseAdd("AmuleModern/0.9");
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+            if ((int)response.StatusCode is >= 300 and < 400)
+            {
+                var location = response.Headers.Location ?? throw new ArgumentException("La URL redirige sin destino.");
+                uri = ValidateUrl((location.IsAbsoluteUri ? location : new Uri(uri, location)).AbsoluteUri);
+                continue;
+            }
+            response.EnsureSuccessStatusCode();
+            if (response.Content.Headers.ContentLength is > MaxBytes) throw new ArgumentException("La lista remota supera 2 MiB.");
+            await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
+            return await ReadBoundedAsync(stream, deadline.Token);
+        }
+        throw new ArgumentException("Demasiadas redirecciones al descargar la lista.");
+    }
+    private static Uri ValidateUrl(string url)
+    {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo))
             throw new ArgumentException("Usa una URL http o https, sin usuario ni contraseña.");
         if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || IPAddress.TryParse(uri.Host, out var ip) && (IPAddress.IsLoopback(ip) || ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6))
             throw new ArgumentException("No se importan listas desde localhost ni IPv6.");
-        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("AmuleModern/0.9");
-        for (int hop = 0; hop < 5; hop++)
+        return uri;
+    }
+    public static async Task<byte[]> ReadFileAsync(string path, CancellationToken token = default)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(15));
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.Asynchronous);
+        if (stream.Length > MaxBytes) throw new ArgumentException("La lista supera 2 MiB.");
+        return await ReadBoundedAsync(stream, deadline.Token);
+    }
+    private static async Task<byte[]> ReadBoundedAsync(Stream stream, CancellationToken token)
+    {
+        using var data = new MemoryStream();
+        byte[] buffer = new byte[8192];
+        while (true)
         {
-            using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token);
-            if ((int)response.StatusCode is >= 300 and < 400)
-            {
-                uri = response.Headers.Location ?? throw new ArgumentException("La URL redirige sin destino.");
-                if (!uri.IsAbsoluteUri) uri = new Uri(response.RequestMessage!.RequestUri!, uri);
-                if (uri.Scheme is not ("http" or "https")) throw new ArgumentException("La redirección no es http/https.");
-                continue;
-            }
-            response.EnsureSuccessStatusCode();
-            if (response.Content.Headers.ContentLength is > MaxBytes)
-                throw new ArgumentException("La lista remota supera 2 MiB.");
-            byte[] data = await response.Content.ReadAsByteArrayAsync(token);
-            if (data.Length > MaxBytes) throw new ArgumentException("La lista remota supera 2 MiB.");
-            return data;
+            int count = await stream.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, MaxBytes + 1L - data.Length)), token);
+            if (count == 0) return data.ToArray();
+            if (data.Length + count > MaxBytes) throw new ArgumentException("La lista supera 2 MiB.");
+            data.Write(buffer, 0, count);
         }
-        throw new ArgumentException("Demasiadas redirecciones al descargar la lista.");
     }
     private static IReadOnlyList<ServerDraft> ParseMet(byte[] data)
     {

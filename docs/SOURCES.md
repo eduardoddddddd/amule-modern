@@ -51,4 +51,5 @@ La implementación anuncia solo servidor local o global eD2k. Kad sigue desactiv
 - https://github.com/amule-org/amule/blob/3.0.1/src/ExternalConn.cpp — quitar servidor exige etiqueta 0x500; actualizar desde URL escribe `Ed2kServersUrl`.
 - https://github.com/amule-org/amule/blob/3.0.1/src/Preferences.cpp — `CheckUlDlRatio` recorta la bajada si la subida es < 4 KiB/s (×3) o < 10 KiB/s (×4).
 - Esta interfaz importa listas en C# (texto/`server.met`/http) y llama a añadir servidor, para no reactivar el bootstrap automático.
+- Desinstalación: solo archivos del inventario SHA-256; rechaza traversal y junctions. Sentinel de límite ilimitado en aMule: `0xFFFF` (Preferences.cpp / CheckUlDlRatio).
 

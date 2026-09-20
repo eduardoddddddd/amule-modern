@@ -5,7 +5,7 @@ public sealed record BandwidthLimits(uint DownloadKib, uint UploadKib)
     public const uint MaxKib = 102400;
     public bool DownloadUnlimited => DownloadKib == 0;
     public bool UploadUnlimited => UploadKib == 0;
-    public static uint Normalize(ulong raw) => raw == 0 || raw >= 0xFFFF ? 0 : raw > MaxKib ? MaxKib : (uint)raw;
+    public static uint Normalize(ulong raw) => raw == 0 || raw == 0xFFFF ? 0 : checked((uint)raw);
 }
 
 public sealed partial class EcClient

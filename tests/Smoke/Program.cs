@@ -3,13 +3,14 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 
-if (args.Contains("--live-search"))
+if (args.Contains("--live-search") || args.Contains("--network-status"))
 {
     var config = File.ReadAllLines(Path.Combine(EngineSession.FindRepository(), ".local", "desktop", "amule.conf"));
     using var live = new EcClient();
     await live.ConnectAsync(int.Parse(config.Single(l => l.StartsWith("ECPort="))[7..]), config.Single(l => l.StartsWith("ECPassword="))[11..]);
     var network = await live.GetNetworkStateAsync();
     Console.WriteLine($"NETWORK: {network.Ed2kText}; SERVER: {network.Server?.Endpoint}");
+    if (args.Contains("--network-status")) return;
     await live.StartSearchAsync("ubuntu");
     for (int i = 0; i < 12; i++)
     {
@@ -56,10 +57,47 @@ try { await ServerListFile.DownloadAsync("file:///C:/servers.txt"); } catch (Arg
 try { await ServerListFile.DownloadAsync("http://127.0.0.1/servers.txt"); } catch (ArgumentException) { loopUrl = true; }
 try { ServerListFile.ParseText("   \n# solo comentarios\n"); } catch (ArgumentException) { emptyList = true; }
 Check(fileUrl && loopUrl && emptyList, "reject file URL, localhost URL and empty server list");
+var oversizedBody = new ImportStream(ServerListFile.MaxBytes * 4);
+using (var http = new HttpClient(new ImportTransport(_ => new(System.Net.HttpStatusCode.OK) { Content = new StreamContent(oversizedBody) })))
+{
+    bool bounded = false;
+    try { await ServerListFile.DownloadAsync("https://fixture.invalid/list", http, TimeSpan.FromSeconds(2)); } catch (ArgumentException) { bounded = true; }
+    Check(bounded && oversizedBody.BytesRead == ServerListFile.MaxBytes + 1, "unknown-length HTTP body stops after limit plus one byte");
+}
+using (var http = new HttpClient(new ImportTransport(_ => new(System.Net.HttpStatusCode.OK) { Content = new StreamContent(new ImportStream(1, true)) })))
+{
+    bool timedOut = false;
+    try { await ServerListFile.DownloadAsync("https://fixture.invalid/slow", http, TimeSpan.FromMilliseconds(100)); } catch (OperationCanceledException) { timedOut = true; }
+    Check(timedOut, "deadline cancels a stalled response body after headers");
+}
+using (var http = new HttpClient(new ImportTransport(_ => new(System.Net.HttpStatusCode.NotFound))))
+{
+    bool failed = false;
+    try { await ServerListFile.DownloadAsync("https://fixture.invalid/missing", http, TimeSpan.FromSeconds(2)); } catch (HttpRequestException) { failed = true; }
+    Check(failed, "HTTP 404 is an acquisition failure");
+}
+using (var http = new HttpClient(new ImportTransport(_ => { var response = new HttpResponseMessage(System.Net.HttpStatusCode.Found); response.Headers.Location = new Uri("http://127.0.0.1/private"); return response; })))
+{
+    bool rejected = false;
+    try { await ServerListFile.DownloadAsync("https://fixture.invalid/redirect", http, TimeSpan.FromSeconds(2)); } catch (ArgumentException) { rejected = true; }
+    Check(rejected, "redirect destinations receive the same URL validation");
+}
+Check(BandwidthLimits.Normalize(80000) == 80000 && BandwidthLimits.Normalize(102400) == 102400 && BandwidthLimits.Normalize(65535) == 0, "high bandwidth limits are preserved and only exact legacy sentinel is unlimited");
 string bundle = Path.Combine(Path.GetTempPath(), "amule-modern-layout-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(Path.Combine(bundle, "engine", "bin"));
 File.WriteAllText(Path.Combine(bundle, "engine-manifest.json"), "{}");
 File.WriteAllBytes(Path.Combine(bundle, "engine", "bin", "amuled.exe"), [0]);
+string largeList = Path.Combine(bundle, "large-list.txt");
+using (var file = File.Create(largeList)) file.SetLength(ServerListFile.MaxBytes + 1L);
+bool largeRejected = false;
+try { await ServerListFile.ReadFileAsync(largeList); } catch (ArgumentException) { largeRejected = true; }
+Check(largeRejected, "oversized local list is rejected before reading its contents");
+using (var locked = new FileStream(largeList, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+{
+    bool lockedRejected = false;
+    try { await ServerListFile.ReadFileAsync(largeList); } catch (IOException) { lockedRejected = true; }
+    Check(lockedRejected, "locked local list reports an acquisition error");
+}
 var bundled = EngineSession.Locate(Path.Combine(bundle, "engine", "bin"));
 Check(string.Equals(bundled.Root, bundle, StringComparison.OrdinalIgnoreCase) && bundled.EnginePath.EndsWith(Path.Combine("engine", "bin", "amuled.exe"), StringComparison.OrdinalIgnoreCase) && !bundled.IsRepository, "bundled layout finds engine next to the app");
 var repoLayout = EngineSession.Locate(EngineSession.FindRepository());
@@ -238,6 +276,8 @@ if (args.Contains("--integration"))
         Check(!(await engine.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35") && (await engine.Client.GetServersAsync()).Any(s => s.Endpoint == testServer.Endpoint), "remove one server and keep the others");
         var initialBw = await engine.Client.GetBandwidthAsync();
         Check(initialBw.DownloadUnlimited && initialBw.UploadUnlimited, "bandwidth starts unlimited");
+        await engine.Client.SetBandwidthAsync(80000, 80000);
+        Check((await engine.Client.GetBandwidthAsync()) is { DownloadKib: 80000, UploadKib: 80000 }, "real engine roundtrip preserves 80000 KiB/s limits");
         await engine.Client.SetBandwidthAsync(400, 100);
         var setBw = await engine.Client.GetBandwidthAsync();
         Check(setBw.DownloadKib == 400 && setBw.UploadKib == 100, "set download and upload limits in KiB/s");
