@@ -35,4 +35,4 @@ wxFileConfig interpreta barras invertidas como escapes: IncomingDir y TempDir se
 
 ## Joplin
 
-Web Clipper disponible el 20/09/2026 mediante TDKop. El incremento 0.2.0 está en la nota Codex `b34863d12bea450d8269209b232c4f3a`. El 0.3.0 se registra en una nota posterior.
+Web Clipper disponible el 20/09/2026 mediante TDKop. 0.2.0: nota Codex `b34863d12bea450d8269209b232c4f3a`. 0.3.0 y el remoto GitHub: `e00ec0b576824f2b9f71a9bf868991f6`.

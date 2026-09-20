@@ -1,7 +1,6 @@
-# Registro en Joplin completado
+# Registro en Joplin
 
-La nota «aMule Modern — interfaz y servidores eD2k — 2026-09-20» se creó en la libreta Codex mediante TDKop y Web Clipper.
+- 0.2.0: «aMule Modern — interfaz y servidores eD2k — 2026-09-20» — `b34863d12bea450d8269209b232c4f3a`
+- 0.3.0: «aMule Modern — búsqueda eD2k y repo GitHub — 2026-09-20» — `e00ec0b576824f2b9f71a9bf868991f6`
 
-ID: b34863d12bea450d8269209b232c4f3a
-
-Incluye estado, decisiones, correcciones del motor, validación y trabajo pendiente. Esta nota resuelve el registro pendiente del primer incremento; los documentos completos permanecen en el repositorio.
+Libreta Codex. Los documentos completos permanecen en el repositorio.
