@@ -9,7 +9,7 @@ using Avalonia.Threading;
 
 namespace AmuleModern.Desktop;
 
-public partial class SharedWindow : Window
+public partial class SharedWindow : UserControl
 {
     private readonly EngineSession engine = null!;
     private readonly ObservableCollection<SharedFile> rows = [];
@@ -24,9 +24,13 @@ public partial class SharedWindow : Window
     {
         this.engine = engine;
         ExtraFoldersInput.ItemsSource = folderOptions;
-        Opened += async (_, _) => { await RunAsync(async () => { available = true; await RefreshAsync(); }); if (available && !closed) timer.Start(); };
-        Closing += (_, e) => { if (busy) e.Cancel = true; };
-        Closed += (_, _) => { closed = true; timer.Stop(); };
+        AttachedToVisualTree += async (_, _) =>
+        {
+            closed = false;
+            await RunAsync(async () => { available = true; await RefreshAsync(); });
+            if (available && !closed) timer.Start();
+        };
+        DetachedFromVisualTree += (_, _) => { timer.Stop(); closed = true; };
         timer.Tick += async (_, _) =>
         {
             if (closed || busy || !await gate.WaitAsync(0)) return;
@@ -88,7 +92,7 @@ public partial class SharedWindow : Window
     }
     private async void AddFolder(object? sender, RoutedEventArgs e)
     {
-        var storage = StorageProvider;
+        var storage = UiHost.StorageOf(this);
         var options = new FolderPickerOpenOptions { Title = "Carpeta a compartir (solo esa carpeta, no el disco entero)", AllowMultiple = false };
         if (Directory.Exists(engine.IncomingPath))
             options.SuggestedStartLocation = await storage.TryGetFolderFromPathAsync(engine.IncomingPath);
@@ -109,7 +113,7 @@ public partial class SharedWindow : Window
         var confirm = new ConfirmWindow("Dejar de compartir",
             $"Se dejará de ofrecer la carpeta «{folder}». Los archivos no se borran del disco.",
             "Dejar de compartir");
-        await confirm.ShowDialog(this);
+        await confirm.ShowDialog(UiHost.WindowOf(this));
         if (!confirm.Accepted) return;
         await RunAsync(async () =>
         {
@@ -153,7 +157,7 @@ public partial class SharedWindow : Window
         if (!RemoveFolderButton.IsEnabled || rows.Any(row => UserFolders.IsUnder(row.Path, emptyFolder)))
             throw new InvalidOperationException("No se puede seleccionar una carpeta vacía sin seleccionar archivos.");
         RemoveFolderButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        var confirm = OwnedWindows.OfType<ConfirmWindow>().Single();
+        var confirm = UiHost.WindowOf(this).OwnedWindows.OfType<ConfirmWindow>().Single();
         confirm.FindControl<Button>("AcceptButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         for (int i = 0; i < 100 && engine.ExtraSharedDirectories().Contains(emptyFolder); i++) await Task.Delay(50);
         await gate.WaitAsync(); gate.Release();

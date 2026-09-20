@@ -57,12 +57,13 @@ public static class ServerListFile
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         using var http = new HttpClient(handler);
-        return await DownloadAsync(url, http, TimeSpan.FromSeconds(15), token);
+        return await DownloadAsync(url, http, TimeSpan.FromSeconds(30), token);
     }
     // Injectable transport permits deterministic HTTP failure/stream tests without public servers.
+    public const string ExampleUrl = "https://upd.emule-security.org/server.met";
     public static async Task<byte[]> DownloadAsync(string url, HttpClient http, TimeSpan timeout, CancellationToken token = default)
     {
-        Uri uri = ValidateUrl(url.Trim());
+        Uri uri = ValidateUrl(url);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(timeout);
         for (int hop = 0; hop < 5; hop++)
@@ -76,20 +77,34 @@ public static class ServerListFile
                 uri = ValidateUrl((location.IsAbsoluteUri ? location : new Uri(uri, location)).AbsoluteUri);
                 continue;
             }
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+                throw new ArgumentException($"El servidor respondió {(int)response.StatusCode}. Prueba {ExampleUrl}");
             if (response.Content.Headers.ContentLength is > MaxBytes) throw new ArgumentException("La lista remota supera 2 MiB.");
             await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
-            return await ReadBoundedAsync(stream, deadline.Token);
+            byte[] body = await ReadBoundedAsync(stream, deadline.Token);
+            string media = response.Content.Headers.ContentType?.MediaType ?? "";
+            if (media.Contains("html", StringComparison.OrdinalIgnoreCase) || LooksLikeHtml(body))
+                throw new ArgumentException($"Esa URL es una página web, no un server.met. Usa un enlace directo al fichero, p. ej. {ExampleUrl}");
+            return body;
         }
         throw new ArgumentException("Demasiadas redirecciones al descargar la lista.");
     }
-    private static Uri ValidateUrl(string url)
+    public static Uri ValidateUrl(string url)
     {
+        url = (url ?? "").Trim().Trim('"', '\'', '<', '>', '«', '»');
+        if (url.Length == 0) throw new ArgumentException($"Pega la URL de un server.met, p. ej. {ExampleUrl}");
+        if (!url.Contains("://", StringComparison.Ordinal)) url = "https://" + url;
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(uri.UserInfo))
-            throw new ArgumentException("Usa una URL http o https, sin usuario ni contraseña.");
+            throw new ArgumentException($"Usa una URL http o https, sin usuario ni contraseña. Ejemplo: {ExampleUrl}");
         if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || IPAddress.TryParse(uri.Host, out var ip) && (IPAddress.IsLoopback(ip) || ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6))
             throw new ArgumentException("No se importan listas desde localhost ni IPv6.");
         return uri;
+    }
+    private static bool LooksLikeHtml(byte[] body)
+    {
+        if (body.Length < 15) return false;
+        string head = Encoding.ASCII.GetString(body.AsSpan(0, Math.Min(body.Length, 64))).TrimStart().ToLowerInvariant();
+        return head.StartsWith("<!doctype html", StringComparison.Ordinal) || head.StartsWith("<html", StringComparison.Ordinal);
     }
     public static async Task<byte[]> ReadFileAsync(string path, CancellationToken token = default)
     {
@@ -126,55 +141,71 @@ public static class ServerListFile
             ushort port = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(offset)); offset += 2;
             uint tags = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(offset)); offset += 4;
             if (tags > 64) throw new ArgumentException("server.met con etiquetas excesivas.");
-            for (uint t = 0; t < tags; t++) offset = SkipMetTag(data, offset);
+            string serverName = "";
+            for (uint t = 0; t < tags; t++)
+            {
+                var tag = ReadMetTag(data, offset);
+                offset = tag.Next;
+                if (tag.IsServerName && tag.Text.Length > 0 && serverName.Length == 0)
+                    serverName = tag.Text.Length > 120 ? tag.Text[..120] : tag.Text;
+            }
             if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.Broadcast) || address.GetAddressBytes()[0] >= 224)
                 continue;
             if (port == 0) continue;
             string key = address + ":" + port;
             if (!seen.Add(key)) continue;
-            result.Add(new(address.ToString(), port.ToString(), ""));
+            if (serverName.Any(char.IsControl)) serverName = "";
+            result.Add(new(address.ToString(), port.ToString(), serverName.Trim()));
         }
-        if (offset != data.Length) throw new ArgumentException("server.met con datos sobrantes.");
+        // Some lists pad or append extras after the declared entries; ignore trailing bytes.
         if (result.Count == 0) throw new ArgumentException("server.met no contiene IPv4 públicas utilizables.");
         return result;
     }
-    private static int SkipMetTag(byte[] data, int offset)
+    private readonly record struct MetTag(int Next, bool IsServerName, string Text);
+    private static MetTag ReadMetTag(byte[] data, int offset)
     {
         Need(data, offset, 1);
         byte type = data[offset++];
         bool namedById = (type & 0x80) != 0;
         type &= 0x7F;
+        bool isServerName = false;
         if (namedById)
         {
             Need(data, offset, 1);
-            offset++;
+            byte id = data[offset++];
+            // ST_SERVERNAME = 0x01 in eMule/aMule server.met
+            isServerName = id == 0x01;
         }
         else
         {
             Need(data, offset, 2);
             ushort nameLen = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(offset)); offset += 2;
             Need(data, offset, nameLen);
+            // Real lists often store the id as a 1-byte name ("\x01") instead of the 0x80 form.
+            isServerName = nameLen == 1 && data[offset] == 0x01;
             offset += nameLen;
         }
         switch (type)
         {
-            case 1: Need(data, offset, 16); return offset + 16;
+            case 1: Need(data, offset, 16); return new(offset + 16, false, "");
             case 2:
                 Need(data, offset, 2);
                 ushort text = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(offset)); offset += 2;
-                Need(data, offset, text); return offset + text;
+                Need(data, offset, text);
+                string value = text == 0 ? "" : Encoding.UTF8.GetString(data, offset, text);
+                return new(offset + text, isServerName, value);
             case 3:
-            case 4: Need(data, offset, 4); return offset + 4;
+            case 4: Need(data, offset, 4); return new(offset + 4, false, "");
             case 5:
-            case 0x12: Need(data, offset, 1); return offset + 1;
-            case 0x11: Need(data, offset, 2); return offset + 2;
-            case 0x13: Need(data, offset, 8); return offset + 8;
+            case 0x12: Need(data, offset, 1); return new(offset + 1, false, "");
+            case 0x11: Need(data, offset, 2); return new(offset + 2, false, "");
+            case 0x13: Need(data, offset, 8); return new(offset + 8, false, "");
             case 0x07:
             case 0x20:
                 Need(data, offset, 4);
                 uint blob = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(offset)); offset += 4;
                 if (blob > 4096) throw new ArgumentException("Etiqueta server.met demasiado grande.");
-                Need(data, offset, (int)blob); return offset + (int)blob;
+                Need(data, offset, (int)blob); return new(offset + (int)blob, false, "");
             default: throw new ArgumentException($"Etiqueta server.met desconocida (0x{type:X2}).");
         }
     }

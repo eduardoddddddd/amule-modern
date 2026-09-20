@@ -57,3 +57,6 @@ Ver [plan](docs/PLAN.md), [estado](docs/STATUS.md) y [referencias](docs/SOURCES.
 ## Licencia
 
 Código del proyecto: GPL-2.0-or-later. aMule conserva su licencia y autores; el paquete portable incluye `NOTICE-AMULE.md` y `engine/share/doc/amule/LICENSE.md`. Las bibliotecas .NET/Avalonia conservan sus respectivas licencias. El motor de `vendor/` no está versionado en Git; el ZIP portable sí lo copia.
+
+El desinstalador del paquete actúa sobre su propia carpeta y necesita installation-manifest.json. Conserva archivos ajenos o modificados. Desde el repositorio usa scripts/Uninstall.ps1 -Prefix <carpeta-de-instalación>. Para paquetes antiguos sin inventario, actualiza primero; no se intenta adivinar qué archivos borrar.
+

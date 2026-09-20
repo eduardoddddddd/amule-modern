@@ -1,81 +1,164 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.MainWindow"
-        Title="aMule Modern · Desarrollo" Width="1240" Height="790" MinWidth="1020" MinHeight="620"
-        Background="#111B29" FontFamily="Inter" Foreground="#E6ECF5" WindowStartupLocation="CenterScreen">
-  <Grid ColumnDefinitions="218,*" RowDefinitions="*,40">
-    <Border Grid.RowSpan="2" Background="#0D1521" BorderBrush="#243143" BorderThickness="0,0,1,0">
-      <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20,28,18,20">
-        <StackPanel>
-          <StackPanel Orientation="Horizontal" Spacing="10">
-            <Border Background="#80DBC6" CornerRadius="9" Width="34" Height="34"><TextBlock Text="m" Foreground="#0D2520" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
-            <StackPanel VerticalAlignment="Center"><TextBlock Text="aMule" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="MODERN" FontSize="9" LetterSpacing="3" Foreground="#8194AF" /></StackPanel>
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AmuleModern.Desktop.MainWindow"
+        Title="aMule Modern" Width="1280" Height="820" MinWidth="1040" MinHeight="640"
+        Background="{DynamicResource App.Bg}" WindowStartupLocation="CenterScreen">
+  <Grid ColumnDefinitions="232,*" RowDefinitions="*,36">
+    <!-- Sidebar -->
+    <Border Grid.RowSpan="2" Background="{DynamicResource App.Sidebar}"
+            BorderBrush="{DynamicResource App.SidebarBorder}" BorderThickness="0,0,1,0">
+      <Grid RowDefinitions="Auto,*,Auto" Margin="16,24,14,16">
+        <StackPanel Spacing="18">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Border Background="{DynamicResource App.Accent}" CornerRadius="10" Width="36" Height="36">
+              <TextBlock Text="m" Foreground="{DynamicResource App.AccentFg}" FontSize="22" FontWeight="Bold"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center" Spacing="1">
+              <TextBlock Text="aMule" FontSize="18" FontWeight="SemiBold"/>
+              <TextBlock Text="MODERN" Classes="dim" FontSize="9" LetterSpacing="2.4"/>
+            </StackPanel>
           </StackPanel>
-          <TextBlock Text="Tu biblioteca. A tu ritmo." FontSize="11" Foreground="#8393AA" Margin="0,19,0,30" />
+          <TextBlock Text="Biblioteca y transferencias" Classes="muted" FontSize="12" TextWrapping="Wrap"/>
         </StackPanel>
-        <StackPanel Grid.Row="1">
-          <TextBlock Text="BIBLIOTECA" FontSize="10" LetterSpacing="1.8" Foreground="#63768F" Margin="12,0,0,12" />
-          <Button Classes="nav selected" Content="↓    Descargas" />
-          <Button x:Name="ServersButton" Classes="nav" Content="⇄    Servidores" Click="OpenServers" IsEnabled="False" />
-          <Button x:Name="SearchNavButton" Classes="nav" Content="⌕    Buscar" Click="OpenSearch" IsEnabled="False" />
-          <Button x:Name="SharedButton" Classes="nav" Content="▤    Compartidos" Click="OpenShared" IsEnabled="False" />
-          <Border Height="1" Background="#243143" Margin="10,23" />
-          <Button x:Name="SettingsButton" Classes="nav" Content="⚙    Ajustes" Click="OpenSettings" IsEnabled="False" />
-          <Button Classes="nav" Content="↗    Abrir descargas" Click="OpenDownloads" />
-          <Button Classes="nav" Content="▧    Ver plan" Click="OpenPlan" />
-          <Button x:Name="QuitButton" Classes="nav" Content="×    Salir y detener" Click="QuitClicked" ToolTip.Tip="Cierra la aplicación y detiene el motor" />
+
+        <ScrollViewer Grid.Row="1" Margin="0,28,0,16" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="2">
+            <TextBlock Text="PRINCIPAL" Classes="section" Margin="12,0,0,8"/>
+            <Button x:Name="NavDownloads" Classes="nav selected" Content="Descargas" Click="NavDownloadsClicked"/>
+            <Button x:Name="NavSearch" Classes="nav" Content="Buscar" Click="NavSearchClicked" IsEnabled="False"/>
+            <Button x:Name="NavServers" Classes="nav" Content="Servidores" Click="NavServersClicked" IsEnabled="False"/>
+            <Button x:Name="NavShared" Classes="nav" Content="Compartidos" Click="NavSharedClicked" IsEnabled="False"/>
+            <Border Height="1" Background="{DynamicResource App.Border}" Margin="10,18"/>
+            <TextBlock Text="SISTEMA" Classes="section" Margin="12,0,0,8"/>
+            <Button x:Name="NavSettings" Classes="nav" Content="Ajustes" Click="NavSettingsClicked" IsEnabled="False"/>
+            <Button Classes="nav" Content="Abrir Incoming" Click="OpenDownloads"/>
+            <Button x:Name="QuitButton" Classes="nav" Content="Salir y detener" Click="QuitClicked"
+                    ToolTip.Tip="Cierra la aplicación y detiene el motor"/>
+          </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Spacing="10">
+          <Border Classes="panel" Padding="12">
+            <StackPanel Spacing="6">
+              <TextBlock Text="APARIENCIA" Classes="section"/>
+              <ComboBox x:Name="ThemeInput" HorizontalAlignment="Stretch" SelectionChanged="ThemeChanged">
+                <ComboBoxItem Content="Oscuro" Tag="Dark"/>
+                <ComboBoxItem Content="Claro" Tag="Light"/>
+                <ComboBoxItem Content="Sistema" Tag="System"/>
+              </ComboBox>
+            </StackPanel>
+          </Border>
+          <Border Classes="panel" Padding="12">
+            <StackPanel Spacing="4">
+              <TextBlock Text="SEGUNDO PLANO" Classes="accent" FontSize="9" LetterSpacing="1.2" FontWeight="SemiBold"/>
+              <TextBlock Text="La X oculta a la bandeja. Salir detiene el motor." Classes="muted" FontSize="11" TextWrapping="Wrap" LineHeight="16"/>
+            </StackPanel>
+          </Border>
         </StackPanel>
-        <Border Grid.Row="3" Background="#142333" CornerRadius="10" Padding="14">
-          <StackPanel Spacing="7"><TextBlock Text="EN SEGUNDO PLANO" FontSize="9" LetterSpacing="1.4" Foreground="#80DBC6" /><TextBlock Text="La X oculta a la bandeja." FontSize="11" /><TextBlock Text="Las transferencias siguen.&#10;Salir detiene el motor." FontSize="11" Foreground="#899DB7" LineHeight="18" /></StackPanel>
-        </Border>
       </Grid>
     </Border>
-    <Grid Grid.Column="1" Margin="32,28,32,20" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Spacing="7"><TextBlock Text="Descargas" FontSize="30" FontWeight="SemiBold" /><TextBlock Text="Todo en su sitio. Cada transferencia, bajo control." FontSize="13" Foreground="#8C9DB5" /></StackPanel>
-        <Border Grid.Column="1" Background="#1B2C3B" CornerRadius="18" Padding="13,8" VerticalAlignment="Top"><TextBlock x:Name="EngineBadge" Text="●  Iniciando motor" FontSize="11" Foreground="#80DBC6" /></Border>
-      </Grid>
-      <Grid Grid.Row="1" ColumnDefinitions="*,14,*,14,*" Margin="0,28,0,25">
-        <Border Background="#192637" CornerRadius="10" Padding="19,15"><StackPanel Spacing="8"><TextBlock Text="EN LA COLA" Foreground="#8C9DB5" FontSize="10" LetterSpacing="1" /><TextBlock x:Name="QueueCount" Text="0" FontSize="24" FontWeight="SemiBold" /></StackPanel></Border>
-        <Border Grid.Column="2" Background="#192637" CornerRadius="10" Padding="19,15"><StackPanel Spacing="8"><TextBlock Text="↓  DESCARGA" Foreground="#8C9DB5" FontSize="10" LetterSpacing="1" /><TextBlock x:Name="DownloadSpeed" Text="—" FontSize="24" FontWeight="SemiBold" /></StackPanel></Border>
-        <Border Grid.Column="4" Background="#192637" CornerRadius="10" Padding="19,15"><StackPanel Spacing="8"><TextBlock Text="↑  SUBIDA" Foreground="#8C9DB5" FontSize="10" LetterSpacing="1" /><TextBlock x:Name="UploadSpeed" Text="—" FontSize="24" FontWeight="SemiBold" /></StackPanel></Border>
-      </Grid>
-      <Grid Grid.Row="2" ColumnDefinitions="*,12,Auto" Margin="0,0,0,18">
-        <TextBox x:Name="LinkInput" PlaceholderText="Pega un enlace ed2k:// de archivo" KeyDown="LinkKeyDown" />
-        <Button x:Name="AddButton" Grid.Column="2" Classes="primary" Content="+  Añadir enlace" Click="AddLink" IsEnabled="False" />
-      </Grid>
-      <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
-        <TextBox x:Name="FilterInput" PlaceholderText="Filtrar por nombre…" Width="260" HorizontalAlignment="Left" TextChanged="FilterChanged" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-          <Button x:Name="PauseButton" Content="Pausar" Click="PauseSelected" IsEnabled="False" />
-          <Button x:Name="ResumeButton" Content="Reanudar" Click="ResumeSelected" IsEnabled="False" />
-          <Button x:Name="CancelButton" Classes="danger" Content="Cancelar" Click="CancelSelected" ToolTip.Tip="Cancela descargas incompletas y borra sus temporales" IsEnabled="False" />
-          <Button x:Name="ClearButton" Content="Quitar de la lista" Click="ClearCompletedSelected" ToolTip.Tip="Quita completados de la cola. Conserva el archivo en Incoming." IsEnabled="False" />
-          <Button x:Name="RefreshButton" Content="↻" Click="RefreshClicked" ToolTip.Tip="Actualizar" IsEnabled="False" />
-        </StackPanel>
-      </Grid>
-      <Border Grid.Row="4" BorderBrush="#263448" BorderThickness="1" CornerRadius="9" ClipToBounds="True">
-        <Grid>
-          <DataGrid x:Name="DownloadsGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionChanged="SelectionChanged"
-                    GridLinesVisibility="None" RowHeight="48" HeadersVisibility="Column" CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True" Background="#131F2D" BorderThickness="0">
-            <DataGrid.Columns>
-              <DataGridTextColumn Header="ARCHIVO" Binding="{Binding Name}" Width="*" MinWidth="200" />
-              <DataGridTextColumn Header="TAMAÑO" Binding="{Binding SizeText}" SortMemberPath="Size" Width="100" />
-              <DataGridTemplateColumn Header="PROGRESO" Width="130" SortMemberPath="Progress"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel VerticalAlignment="Center" Margin="8,0" Spacing="5"><TextBlock Text="{Binding ProgressText}" FontSize="11" /><ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="3" Foreground="#80DBC6" Background="#2D3C4E" /></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-              <DataGridTextColumn Header="ESTADO" Binding="{Binding StateText}" Width="120" />
-              <DataGridTextColumn Header="VELOCIDAD" Binding="{Binding SpeedText}" SortMemberPath="Speed" Width="110" />
-              <DataGridTextColumn Header="FUENTES" Binding="{Binding Sources}" Width="95" />
-            </DataGrid.Columns>
-          </DataGrid>
-          <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="13" IsHitTestVisible="False">
-            <Border Width="58" Height="58" CornerRadius="18" Background="#1D3443" HorizontalAlignment="Center"><TextBlock Text="↓" FontSize="31" Foreground="#80DBC6" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
-            <TextBlock x:Name="EmptyTitle" Text="Tu próxima descarga empieza aquí" FontSize="17" FontWeight="Medium" HorizontalAlignment="Center" />
-            <TextBlock Text="Añade un enlace y conecta a un servidor&#10;desde la opción Servidores de la barra lateral." Foreground="#8497B0" FontSize="12" LineHeight="21" TextAlignment="Center" />
+
+    <!-- Content host -->
+    <Panel Grid.Column="1">
+      <Grid x:Name="DownloadsPanel" Margin="28,24,28,12" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Descargas" FontSize="26" FontWeight="SemiBold"/>
+            <TextBlock Text="Cola del motor, con control directo sobre cada transferencia." Classes="muted" FontSize="13"/>
+          </StackPanel>
+          <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top">
+            <TextBlock x:Name="EngineBadge" Text="●  Iniciando motor" Classes="accent" FontSize="11"/>
+          </Border>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,12,*,12,*" Margin="0,22,0,20">
+          <Border Classes="panel" Padding="16,14">
+            <StackPanel Spacing="6">
+              <TextBlock Text="EN COLA" Classes="section"/>
+              <TextBlock x:Name="QueueCount" Text="0" FontSize="22" FontWeight="SemiBold"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="2" Classes="panel" Padding="16,14">
+            <StackPanel Spacing="6">
+              <TextBlock Text="DESCARGA" Classes="section"/>
+              <TextBlock x:Name="DownloadSpeed" Text="—" FontSize="22" FontWeight="SemiBold"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="4" Classes="panel" Padding="16,14">
+            <StackPanel Spacing="6">
+              <TextBlock Text="SUBIDA" Classes="section"/>
+              <TextBlock x:Name="UploadSpeed" Text="—" FontSize="22" FontWeight="SemiBold"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,12,Auto" Margin="0,0,0,14">
+          <TextBox x:Name="LinkInput" PlaceholderText="Pega un enlace ed2k:// de archivo" KeyDown="LinkKeyDown"/>
+          <Button x:Name="AddButton" Grid.Column="2" Classes="primary" Content="Añadir enlace" Click="AddLink" IsEnabled="False"/>
+        </Grid>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+          <TextBox x:Name="FilterInput" PlaceholderText="Filtrar por nombre…" Width="280" HorizontalAlignment="Left" TextChanged="FilterChanged"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="PauseButton" Content="Pausar" Click="PauseSelected" IsEnabled="False"/>
+            <Button x:Name="ResumeButton" Content="Reanudar" Click="ResumeSelected" IsEnabled="False"/>
+            <Button x:Name="CancelButton" Classes="danger" Content="Cancelar" Click="CancelSelected"
+                    ToolTip.Tip="Cancela descargas incompletas y borra sus temporales" IsEnabled="False"/>
+            <Button x:Name="ClearButton" Content="Quitar de la lista" Click="ClearCompletedSelected"
+                    ToolTip.Tip="Quita completados de la cola. Conserva el archivo en Incoming." IsEnabled="False"/>
+            <Button x:Name="RefreshButton" Content="↻" Click="RefreshClicked" ToolTip.Tip="Actualizar" IsEnabled="False"/>
           </StackPanel>
         </Grid>
-      </Border>
-      <Border Grid.Row="5" Background="#192637" CornerRadius="8" Margin="0,14,0,0" Padding="14,11"><TextBlock x:Name="Message" Text="Preparando el perfil de desarrollo…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12" /></Border>
-    </Grid>
-    <Border Grid.Row="1" Grid.Column="1" Background="#0F1926" BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="20,0">
-      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center"><TextBlock x:Name="ConnectionStatus" Text="Motor local · esperando autenticación" FontSize="11" Foreground="#8295AE" /><TextBlock Grid.Column="1" Text="0.9.0-dev  ·  C# / Avalonia" FontSize="10" Foreground="#637892" /></Grid>
+
+        <Border Grid.Row="4" Classes="card" ClipToBounds="True">
+          <Grid>
+            <DataGrid x:Name="DownloadsGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended"
+                      SelectionChanged="SelectionChanged" HeadersVisibility="Column"
+                      CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="ARCHIVO" Binding="{Binding Name}" Width="*" MinWidth="200"/>
+                <DataGridTextColumn Header="TAMAÑO" Binding="{Binding SizeText}" SortMemberPath="Size" Width="100"/>
+                <DataGridTemplateColumn Header="PROGRESO" Width="140" SortMemberPath="Progress">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel VerticalAlignment="Center" Margin="10,0" Spacing="4">
+                        <TextBlock Text="{Binding ProgressText}" FontSize="11" Classes="muted"/>
+                        <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="4"
+                                     Foreground="{DynamicResource App.Accent}" Background="{DynamicResource App.ProgressTrack}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="ESTADO" Binding="{Binding StateText}" Width="120"/>
+                <DataGridTextColumn Header="VELOCIDAD" Binding="{Binding SpeedText}" SortMemberPath="Speed" Width="110"/>
+                <DataGridTextColumn Header="FUENTES" Binding="{Binding Sources}" Width="90"/>
+              </DataGrid.Columns>
+            </DataGrid>
+            <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
+              <Border Width="56" Height="56" CornerRadius="16" Background="{DynamicResource App.AccentSoft}" HorizontalAlignment="Center">
+                <TextBlock Text="↓" FontSize="28" Classes="accent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <TextBlock x:Name="EmptyTitle" Text="Tu próxima descarga empieza aquí" FontSize="16" FontWeight="Medium" HorizontalAlignment="Center"/>
+              <TextBlock Text="Añade un enlace o busca archivos.&#10;Conecta un servidor desde Servidores." Classes="muted" FontSize="12" LineHeight="20" TextAlignment="Center"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="5" Classes="panel" Margin="0,12,0,0" Padding="14,10">
+          <TextBlock x:Name="Message" Text="Preparando el perfil…" TextWrapping="Wrap" Classes="muted" FontSize="12"/>
+        </Border>
+      </Grid>
+
+      <ContentControl x:Name="PageHost" IsVisible="False" Margin="0"/>
+    </Panel>
+
+    <!-- Status bar -->
+    <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource App.StatusBar}"
+            BorderBrush="{DynamicResource App.SidebarBorder}" BorderThickness="0,1,0,0" Padding="20,0">
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+        <TextBlock x:Name="ConnectionStatus" Text="Motor local · esperando autenticación" Classes="muted" FontSize="11"/>
+        <TextBlock Grid.Column="1" Text="aMule Modern  ·  Avalonia" Classes="dim" FontSize="10"/>
+      </Grid>
     </Border>
   </Grid>
 </Window>

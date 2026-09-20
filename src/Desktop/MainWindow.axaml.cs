@@ -19,21 +19,128 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim operations = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool ready, allowClose, quitting, startupAttempted;
+    private bool ready, allowClose, quitting, startupAttempted, themeReady;
     private string repository = "";
+    private string currentPage = "downloads";
     private TrayIcon? tray;
+    private SearchWindow? searchPage;
+    private ServersWindow? serversPage;
+    private SharedWindow? sharedPage;
+    private SettingsWindow? settingsPage;
 
     public MainWindow()
     {
-        InitializeComponent(); DownloadsGrid.ItemsSource = rows;
+        InitializeComponent();
+        DownloadsGrid.ItemsSource = rows;
+        SelectThemeItem(UiSettings.LoadTheme());
+        themeReady = true;
         Opened += WindowOpened;
         Closing += WindowClosing;
         timer.Tick += async (_, _) => await RefreshAsync();
         if (Program.CapturePath == null) AttachTray();
     }
+
+    private void SelectThemeItem(string theme)
+    {
+        for (int i = 0; i < ThemeInput.Items.Count; i++)
+        {
+            if (ThemeInput.Items[i] is ComboBoxItem item && (item.Tag as string) == theme)
+            {
+                ThemeInput.SelectedIndex = i;
+                return;
+            }
+        }
+        ThemeInput.SelectedIndex = 0;
+    }
+
+    private void ThemeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!themeReady || ThemeInput.SelectedItem is not ComboBoxItem item || item.Tag is not string theme) return;
+        App.ApplyTheme(theme);
+    }
+
+    private bool CanLeaveCurrentPage()
+    {
+        if (settingsPage != null && currentPage == "settings" && settingsPage.IsBusy)
+        {
+            Message.Text = "Espera a que terminen los ajustes antes de cambiar de pantalla.";
+            return false;
+        }
+        return true;
+    }
+
+    private void SetNavSelected(Button selected)
+    {
+        foreach (var btn in new[] { NavDownloads, NavSearch, NavServers, NavShared, NavSettings })
+        {
+            btn.Classes.Remove("selected");
+            if (btn == selected) btn.Classes.Add("selected");
+        }
+    }
+
+    private void ShowDownloadsPage()
+    {
+        currentPage = "downloads";
+        PageHost.IsVisible = false;
+        PageHost.Content = null;
+        DownloadsPanel.IsVisible = true;
+        SetNavSelected(NavDownloads);
+        if (ready && !quitting && !timer.IsEnabled) timer.Start();
+    }
+
+    private void ShowPage(string id, Control page, Button nav)
+    {
+        if (!CanLeaveCurrentPage()) return;
+        if (currentPage == "settings" && id != "settings" && ready && !quitting) timer.Start();
+        currentPage = id;
+        DownloadsPanel.IsVisible = false;
+        PageHost.Content = page;
+        PageHost.IsVisible = true;
+        SetNavSelected(nav);
+    }
+
+    private void NavDownloadsClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!CanLeaveCurrentPage()) return;
+        ShowDownloadsPage();
+        _ = RefreshAsync();
+    }
+
+    private void NavSearchClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || quitting) return;
+        searchPage ??= new SearchWindow(engine.Client);
+        searchPage.GoToDownloads -= OnGoToDownloads;
+        searchPage.GoToDownloads += OnGoToDownloads;
+        ShowPage("search", searchPage, NavSearch);
+    }
+
+    private void OnGoToDownloads() => ShowDownloadsPage();
+
+    private void NavServersClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || quitting) return;
+        serversPage ??= new ServersWindow(engine.Client);
+        ShowPage("servers", serversPage, NavServers);
+    }
+
+    private void NavSharedClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || quitting) return;
+        sharedPage ??= new SharedWindow(engine);
+        ShowPage("shared", sharedPage, NavShared);
+    }
+
+    private void NavSettingsClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || quitting) return;
+        timer.Stop();
+        settingsPage ??= new SettingsWindow(engine);
+        ShowPage("settings", settingsPage, NavSettings);
+    }
+
     private async void WindowOpened(object? sender, EventArgs e)
     {
-        // Avalonia raises Opened again after Hide/Show (tray restore).
         if (startupAttempted) return;
         startupAttempted = true;
         await operations.WaitAsync();
@@ -59,7 +166,8 @@ public partial class MainWindow : Window
             Message.Text = Program.CapturePath == null
                 ? "Perfil listo. La X oculta a la bandeja y las transferencias siguen. «Salir y detener» cierra el motor."
                 : "Perfil de captura listo. Al cerrar, el motor se detiene.";
-            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = SharedButton.IsEnabled = true;
+            AddButton.IsEnabled = RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled =
+                NavSettings.IsEnabled = NavShared.IsEnabled = true;
             if (Program.CapturePath == null)
             {
                 SingleInstance.Watch(link => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(link)), lifetime.Token);
@@ -72,67 +180,61 @@ public partial class MainWindow : Window
         if (ready) { await RefreshAsync(); timer.Start(); }
         if (Program.CapturePath != null)
         {
-            Window? childWindow = null;
             try
             {
                 if (!ready) throw new InvalidOperationException("La captura no pudo conectar al motor.");
                 if (Program.ShowSearch)
                 {
-                    var searchWindow = new SearchWindow(engine.Client);
-                    childWindow = searchWindow;
-                    searchWindow.Show(this);
-                    if (Program.ExerciseUi) await searchWindow.ExerciseUiAsync();
+                    NavSearchClicked(this, new RoutedEventArgs());
+                    if (Program.ExerciseUi) await searchPage!.ExerciseUiAsync();
                 }
                 else if (Program.ShowServers)
                 {
-                    var serversWindow = new ServersWindow(engine.Client);
-                    childWindow = serversWindow;
-                    serversWindow.Show(this);
-                    if (Program.ExerciseUi) await serversWindow.ExerciseUiAsync();
+                    NavServersClicked(this, new RoutedEventArgs());
+                    if (Program.ExerciseUi) await serversPage!.ExerciseUiAsync();
                 }
                 else if (Program.ShowSettings)
                 {
-                    var settingsWindow = new SettingsWindow(engine);
-                    childWindow = settingsWindow;
-                    settingsWindow.Show(this);
-                    if (Program.ExerciseUi) settingsWindow.ExerciseUi();
+                    NavSettingsClicked(this, new RoutedEventArgs());
+                    if (Program.ExerciseUi) settingsPage!.ExerciseUi();
                 }
                 else if (Program.ShowShared)
                 {
-                    var sharedWindow = new SharedWindow(engine);
-                    childWindow = sharedWindow;
-                    sharedWindow.Show(this);
-                    if (Program.ExerciseUi) await sharedWindow.ExerciseUiAsync();
+                    NavSharedClicked(this, new RoutedEventArgs());
+                    if (Program.ExerciseUi) await sharedPage!.ExerciseUiAsync();
                 }
                 else if (Program.ExerciseUi) await ExerciseUiAsync();
             }
             catch (Exception ex) { Program.CaptureFailed = true; Message.Text = "Prueba visual fallida: " + ex.Message; }
             await Task.Delay(1000);
-            Window target = childWindow ?? (Window)this;
-            using var bitmap = new RenderTargetBitmap(new PixelSize((int)target.Bounds.Width, (int)target.Bounds.Height), new Vector(96, 96));
-            bitmap.Render(target);
+            using var bitmap = new RenderTargetBitmap(new PixelSize((int)Bounds.Width, (int)Bounds.Height), new Vector(96, 96));
+            bitmap.Render(this);
             Directory.CreateDirectory(Path.GetDirectoryName(Program.CapturePath)!);
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
-            if (childWindow != null)
+            if (Program.ShowSearch || Program.ShowServers || Program.ShowSettings || Program.ShowShared)
             {
-                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: UI" : !Program.ExerciseUi ? "CAPTURE ONLY: UI not exercised." : Program.ShowSearch ? "PASS: search UI; simulated Kad-only active search retains Stop, survives scope change, stops on network loss. Real search covered separately by integration." : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp, bandwidth limits and Kad controls." : Program.ShowShared ? "PASS: shared UI removes empty folder through picker and confirmation; directory retained. Incoming and filter verified." : "PASS: servers UI validation, add, import, remove, duplicate, disconnected state. Real engine.");
-                childWindow.Close();
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"),
+                    Program.CaptureFailed ? "FAIL: UI" : !Program.ExerciseUi ? "CAPTURE ONLY: UI not exercised."
+                    : Program.ShowSearch ? "PASS: search UI; simulated Kad-only active search retains Stop, survives scope change, stops on network loss. Real search covered separately by integration."
+                    : Program.ShowSettings ? "PASS: settings UI shows Incoming, tmp, bandwidth limits and Kad controls."
+                    : Program.ShowShared ? "PASS: shared UI removes empty folder through picker and confirmation; directory retained. Incoming and filter verified."
+                    : "PASS: servers UI validation, add, import, remove, duplicate, disconnected state. Real engine.");
             }
             Close();
         }
-        else if (ready && Program.ShowServers) OpenServers(this, new RoutedEventArgs());
-        else if (ready && Program.ShowSearch) OpenSearch(this, new RoutedEventArgs());
-        else if (ready && Program.ShowSettings) OpenSettings(this, new RoutedEventArgs());
-        else if (ready && Program.ShowShared) OpenShared(this, new RoutedEventArgs());
+        else if (ready && Program.ShowServers) NavServersClicked(this, new RoutedEventArgs());
+        else if (ready && Program.ShowSearch) NavSearchClicked(this, new RoutedEventArgs());
+        else if (ready && Program.ShowSettings) NavSettingsClicked(this, new RoutedEventArgs());
+        else if (ready && Program.ShowShared) NavSharedClicked(this, new RoutedEventArgs());
     }
+
     private async Task ExerciseUiAsync()
     {
         int? runningMotor = engine.ProcessId;
         Hide(); Show();
         await operations.WaitAsync(); operations.Release();
-        if (engine.ProcessId != runningMotor || !AddButton.IsEnabled || !SearchNavButton.IsEnabled)
+        if (engine.ProcessId != runningMotor || !AddButton.IsEnabled || !NavSearch.IsEnabled)
             throw new InvalidOperationException("Restaurar la ventana intentó reiniciar el motor o deshabilitó controles.");
-        // Exercise actual routed button events, against the isolated capture engine.
         LinkInput.Text = "ed2k://|file|Prueba de interfaz - abc.txt|3|A448017AAF21D8525FC10AE87AA6729D|/";
         AddButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
@@ -168,15 +270,16 @@ public partial class MainWindow : Window
         Message.Text = "Prueba de interfaz superada: añadir, pausar, reanudar, filtro y selección múltiple. Cancelar se cubre en las pruebas de integración.";
         File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: Hide/Show preserves motor and controls; UI add, pause, resume, filter, multi-select. Real EC engine; isolated fixture; cancel covered by integration.\n");
     }
+
     private static async Task WaitForUiAsync(Func<bool> condition, string error)
     {
-        // TextChanged is delivered through the dispatcher after the property assignment.
         for (int i = 0; i < 100; i++) { if (condition()) return; await Task.Delay(10); }
         throw new InvalidOperationException(error);
     }
+
     private async Task RefreshAsync()
     {
-        if (!ready || quitting || !await operations.WaitAsync(0)) return;
+        if (!ready || quitting || currentPage != "downloads" || !await operations.WaitAsync(0)) return;
         try { await ReadStateAsync(); }
         catch (Exception ex) when (IsRecoverable(ex))
         {
@@ -186,6 +289,7 @@ public partial class MainWindow : Window
         catch (Exception ex) { timer.Stop(); ready = false; ShowError(ex); }
         finally { operations.Release(); }
     }
+
     private async Task ReadStateAsync()
     {
         snapshot = await engine.Client.GetDownloadsAsync(lifetime.Token);
@@ -197,6 +301,7 @@ public partial class MainWindow : Window
         ConnectionStatus.Text = $"Motor local conectado   |   eD2k: {network.Ed2kText}   |   Kad: {network.KadText}";
         ApplyFilter();
     }
+
     private void ApplyFilter()
     {
         if (FilterInput == null) return;
@@ -215,9 +320,11 @@ public partial class MainWindow : Window
         EmptyTitle.Text = snapshot.Count == 0 ? "Tu próxima descarga empieza aquí" : "No hay resultados para este filtro";
         UpdateActionButtons();
     }
+
     private DownloadItem[] SelectedDownloads() => DownloadsGrid.SelectedItems.Cast<DownloadItem>().ToArray();
     private void FilterChanged(object? sender, TextChangedEventArgs e) => ApplyFilter();
     private void SelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateActionButtons();
+
     private void UpdateActionButtons()
     {
         if (PauseButton == null) return;
@@ -228,6 +335,7 @@ public partial class MainWindow : Window
         CancelButton.IsEnabled = active && selected.Any(d => d.CanCancel);
         ClearButton.IsEnabled = active && selected.Any(d => d.IsComplete && d.EcId != 0);
     }
+
     private async Task ActAsync(Func<Task> action, string success)
     {
         if (!ready || quitting) return;
@@ -243,25 +351,31 @@ public partial class MainWindow : Window
         catch (Exception ex) { ready = false; timer.Stop(); ShowError(ex); }
         finally { operations.Release(); }
     }
+
     private static bool IsRecoverable(Exception ex) =>
         ex is SocketException or IOException or ObjectDisposedException or EndOfStreamException or TimeoutException or InvalidDataException
         || ex.InnerException is SocketException or IOException or ObjectDisposedException;
+
     private async void AddLink(object? sender, RoutedEventArgs e)
     {
         string link = LinkInput.Text?.Trim() ?? "";
         await ActAsync(async () => { await engine.Client.AddLinkAsync(link, lifetime.Token); LinkInput.Text = ""; }, "Enlace añadido. Puedes gestionar la conexión desde Servidores.");
     }
+
     private void LinkKeyDown(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter) AddLink(sender, new RoutedEventArgs()); }
+
     private async void PauseSelected(object? sender, RoutedEventArgs e)
     {
         var hashes = SelectedDownloads().Where(d => d.CanCancel).Select(d => d.Hash).ToArray();
         if (hashes.Length > 0) await ActAsync(async () => await engine.Client.PauseAsync(hashes, true, lifetime.Token), hashes.Length == 1 ? "Descarga pausada." : hashes.Length + " descargas pausadas.");
     }
+
     private async void ResumeSelected(object? sender, RoutedEventArgs e)
     {
         var hashes = SelectedDownloads().Where(d => d.CanCancel).Select(d => d.Hash).ToArray();
         if (hashes.Length > 0) await ActAsync(async () => await engine.Client.PauseAsync(hashes, false, lifetime.Token), hashes.Length == 1 ? "Descarga reanudada en la cola." : hashes.Length + " descargas reanudadas.");
     }
+
     private async void CancelSelected(object? sender, RoutedEventArgs e)
     {
         var items = SelectedDownloads().Where(d => d.CanCancel).ToArray();
@@ -276,6 +390,7 @@ public partial class MainWindow : Window
         await ActAsync(async () => await engine.Client.CancelDownloadsAsync(items.Select(d => d.Hash).ToArray(), lifetime.Token),
             items.Length == 1 ? "Descarga cancelada." : items.Length + " descargas canceladas.");
     }
+
     private async void ClearCompletedSelected(object? sender, RoutedEventArgs e)
     {
         var items = SelectedDownloads().Where(d => d.IsComplete && d.EcId != 0).ToArray();
@@ -283,53 +398,25 @@ public partial class MainWindow : Window
         await ActAsync(async () => await engine.Client.ClearCompletedAsync(items.Select(d => d.EcId).ToArray(), lifetime.Token),
             "Quitadas de la lista. Los archivos en Incoming se conservan.");
     }
+
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await RefreshAsync();
-    private async void OpenSearch(object? sender, RoutedEventArgs e)
-    {
-        if (!ready || quitting) return;
-        await new SearchWindow(engine.Client).ShowDialog(this);
-        await RefreshAsync();
-    }
-    private async void OpenServers(object? sender, RoutedEventArgs e)
-    {
-        if (!ready || quitting) return;
-        await new ServersWindow(engine.Client).ShowDialog(this);
-        await RefreshAsync();
-    }
-    private async void OpenSettings(object? sender, RoutedEventArgs e)
-    {
-        if (!ready || quitting) return;
-        timer.Stop();
-        await operations.WaitAsync();
-        try { await new SettingsWindow(engine).ShowDialog(this); }
-        finally { operations.Release(); }
-        if (ready && !quitting) { timer.Start(); await RefreshAsync(); }
-    }
-    private async void OpenShared(object? sender, RoutedEventArgs e)
-    {
-        if (!ready || quitting) return;
-        await new SharedWindow(engine).ShowDialog(this);
-        await RefreshAsync();
-    }
     private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(engine.IncomingPath);
-    private void OpenPlan(object? sender, RoutedEventArgs e)
-    {
-        string plan = Path.Combine(repository, "docs", "PLAN.md");
-        if (File.Exists(plan)) OpenPath(plan);
-        else Message.Text = "Este paquete no incluye el plan de desarrollo.";
-    }
+
     private void OpenPath(string path)
     {
         try { if (File.Exists(path) || Directory.Exists(path)) Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
         catch (Exception ex) { Message.Text = ex.Message; }
     }
+
     private void ShowError(Exception ex)
     {
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Si el motor sigue, recarga; «Salir y detener» cierra el proceso.";
-        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = SearchNavButton.IsEnabled = SettingsButton.IsEnabled = SharedButton.IsEnabled = false;
+        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled =
+            RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled = NavSettings.IsEnabled = NavShared.IsEnabled = false;
     }
+
     private void AttachTray()
     {
         var show = new NativeMenuItem("Mostrar ventana");
@@ -345,16 +432,21 @@ public partial class MainWindow : Window
         tray.Clicked += (_, _) => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(null));
         if (Application.Current != null) TrayIcon.SetIcons(Application.Current, [tray]);
     }
+
     private async Task ShowFromTrayAsync(string? link)
     {
         Show();
         WindowState = WindowState.Normal;
         ShowInTaskbar = true;
         Activate();
-        if (ready && !quitting) { timer.Start(); await RefreshAsync(); }
+        if (ready && !quitting && currentPage == "downloads") { timer.Start(); await RefreshAsync(); }
         if (!string.IsNullOrWhiteSpace(link) && ready && !quitting)
+        {
+            ShowDownloadsPage();
             await ActAsync(async () => await engine.Client.AddLinkAsync(link, lifetime.Token), "Enlace recibido de otra instancia.");
+        }
     }
+
     private async Task HideToTrayAsync()
     {
         timer.Stop();
@@ -372,7 +464,9 @@ public partial class MainWindow : Window
         Hide();
         Message.Text = "Oculto en la bandeja. El motor sigue.";
     }
+
     private async void QuitClicked(object? sender, RoutedEventArgs e) => await QuitAsync();
+
     private async Task QuitAsync()
     {
         if (quitting) return;
@@ -405,6 +499,7 @@ public partial class MainWindow : Window
         }
         finally { operations.Release(); }
     }
+
     private async void WindowClosing(object? sender, WindowClosingEventArgs e)
     {
         if (allowClose) return;

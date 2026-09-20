@@ -22,7 +22,10 @@ public sealed record ServerItem(string Address, ushort Port, string Name, ulong 
         if (tag.Type != 8 || tag.Data.Length != 6) throw new InvalidDataException("Dirección de servidor EC inválida.");
         string address = new IPAddress(tag.Data.AsSpan(0, 4)).ToString();
         ushort port = BinaryPrimitives.ReadUInt16BigEndian(tag.Data.AsSpan(4));
-        return new(address, port, tag.Find(0x501)?.String ?? address, tag.Find(0x505)?.Number ?? 0, tag.Find(0x507)?.Number ?? 0, tag.Find(0x504)?.Number ?? 0);
+        string? rawName = null;
+        try { rawName = tag.Find(0x501)?.String; } catch (InvalidDataException) { /* name tag malformed */ }
+        string name = string.IsNullOrWhiteSpace(rawName) ? address : rawName;
+        return new(address, port, name, tag.Find(0x505)?.Number ?? 0, tag.Find(0x507)?.Number ?? 0, tag.Find(0x504)?.Number ?? 0);
     }
 }
 
@@ -75,11 +78,36 @@ public sealed partial class EcClient
         }
         if (ip is null || ip.AddressFamily != AddressFamily.InterNetwork || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.Broadcast) || ip.GetAddressBytes()[0] >= 224)
             throw new ArgumentException("La dirección IPv4 del servidor no es válida.");
-        var item = new ServerItem(ip.ToString(), port, name.Length == 0 ? address : name, 0, 0, 0);
+        // Prefer an empty EC name over copying the IP: aMule keeps a non-empty label and
+        // will not replace it with the name announced when the TCP session connects.
+        string label = name;
+        var item = new ServerItem(ip.ToString(), port, label.Length == 0 ? ip.ToString() : label, 0, 0, 0);
         var existing = (await GetServersAsync(token)).FirstOrDefault(s => s.Endpoint == item.Endpoint);
-        if (existing != null) return existing; // Idempotent add; do not duplicate the engine's list.
-        await RequestAsync(new(0x31, EcTag.Text(0x503, item.Endpoint), EcTag.Text(0x501, item.Name)), token);
+        if (existing != null)
+        {
+            if (ShouldReplaceServerName(existing, label))
+                return await ReplaceServerNameAsync(existing, label, token);
+            return existing; // Idempotent add; do not duplicate the engine's list.
+        }
+        await RequestAsync(new(0x31, EcTag.Text(0x503, item.Endpoint), EcTag.Text(0x501, label)), token);
         return item;
+    }
+    private static bool ShouldReplaceServerName(ServerItem existing, string incoming) =>
+        incoming.Length > 0
+        && !string.Equals(existing.Name, incoming, StringComparison.Ordinal)
+        && (string.IsNullOrWhiteSpace(existing.Name)
+            || string.Equals(existing.Name, existing.Address, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(existing.Name, existing.Endpoint, StringComparison.OrdinalIgnoreCase));
+    private async Task<ServerItem> ReplaceServerNameAsync(ServerItem existing, string name, CancellationToken token)
+    {
+        var network = await GetNetworkStateAsync(token);
+        bool wasCurrent = network.Server?.Endpoint == existing.Endpoint && (network.Connected || network.Connecting);
+        if (wasCurrent) await DisconnectServerAsync(token);
+        await RequestAsync(new(0x30, existing.ToTag()), token);
+        await RequestAsync(new(0x31, EcTag.Text(0x503, existing.Endpoint), EcTag.Text(0x501, name)), token);
+        var updated = new ServerItem(existing.Address, existing.Port, name, existing.Users, existing.Files, existing.Ping);
+        if (wasCurrent) await ConnectServerAsync(updated, token);
+        return updated;
     }
     public Task<EcPacket> ConnectServerAsync(ServerItem server, CancellationToken token = default) => RequestAsync(new(0x2f, server.ToTag()), token);
     public async Task DisconnectServerAsync(CancellationToken token = default)
@@ -94,17 +122,28 @@ public sealed partial class EcClient
             await DisconnectServerAsync(token);
         await RequestAsync(new(0x30, server.ToTag()), token);
     }
-    public async Task<int> ImportServersAsync(IReadOnlyList<ServerDraft> drafts, CancellationToken token = default)
+    public async Task<(int Added, int Renamed)> ImportServersAsync(IReadOnlyList<ServerDraft> drafts, CancellationToken token = default)
     {
         if (drafts.Count == 0) throw new ArgumentException("La lista no contiene servidores válidos.");
         if (drafts.Count > ServerListFile.MaxServers) throw new ArgumentException($"Como máximo {ServerListFile.MaxServers} servidores por importación.");
-        var before = (await GetServersAsync(token)).Select(s => s.Endpoint).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        int added = 0;
+        var before = (await GetServersAsync(token)).ToDictionary(s => s.Endpoint, s => s.Name, StringComparer.OrdinalIgnoreCase);
+        int added = 0, renamed = 0;
         foreach (var draft in drafts)
         {
             var item = await AddServerAsync(draft.Address, draft.Port, draft.Name, token);
-            if (before.Add(item.Endpoint)) added++;
+            if (!before.TryGetValue(item.Endpoint, out string? oldName))
+            {
+                before[item.Endpoint] = item.Name;
+                added++;
+            }
+            else if (draft.Name.Length > 0
+                     && string.Equals(item.Name, draft.Name, StringComparison.Ordinal)
+                     && !string.Equals(oldName, item.Name, StringComparison.Ordinal))
+            {
+                before[item.Endpoint] = item.Name;
+                renamed++;
+            }
         }
-        return added;
+        return (added, renamed);
     }
 }

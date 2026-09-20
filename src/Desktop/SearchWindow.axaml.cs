@@ -7,7 +7,7 @@ using Avalonia.Threading;
 
 namespace AmuleModern.Desktop;
 
-public partial class SearchWindow : Window
+public partial class SearchWindow : UserControl
 {
     private readonly EcClient client = null!;
     private readonly ObservableCollection<SearchResult> rows = [];
@@ -15,13 +15,19 @@ public partial class SearchWindow : Window
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool busy, available, connected, kadConnected, searching, searchingKad, closed;
+    public event Action? GoToDownloads;
     public SearchWindow() { InitializeComponent(); ResultsGrid.ItemsSource = rows; }
     public SearchWindow(EcClient client) : this()
     {
         this.client = client;
-        Opened += async (_, _) => { await RunAsync(async () => { available = true; await RefreshAsync(); }); if (available && !closed) timer.Start(); };
-        Closing += (_, e) => { if (busy) e.Cancel = true; };
-        Closed += (_, _) => { closed = true; timer.Stop(); };
+        AttachedToVisualTree += async (_, _) =>
+        {
+            // Leaving the page sets closed; returning must reopen or clicks silently no-op.
+            closed = false;
+            await RunAsync(async () => { available = true; await RefreshAsync(); });
+            if (available && !closed) timer.Start();
+        };
+        DetachedFromVisualTree += (_, _) => { timer.Stop(); closed = true; };
         timer.Tick += async (_, _) =>
         {
             if (closed || busy || !await gate.WaitAsync(0)) return;
@@ -89,8 +95,16 @@ public partial class SearchWindow : Window
         await client.StartSearchAsync(QueryInput.Text ?? "", ScopeInput.SelectedIndex == 1, useKad);
         searchingKad = useKad;
         snapshot = []; rows.Clear(); searching = true;
-        StatusMessage.Text = "Búsqueda enviada. Los resultados se actualizan cada dos segundos. Puedes iniciar otra búsqueda o detenerla.";
+        StatusMessage.Text = "Búsqueda enviada. Los resultados se actualizan solos. Puedes lanzar otra búsqueda o detenerla.";
         await RefreshAsync();
+        if (!searchingKad && !connected)
+            StatusMessage.Text = "Sin conexión eD2k. Conecta un servidor y vuelve a buscar.";
+        else if (searchingKad && !kadConnected)
+            StatusMessage.Text = "Kad no está conectado. Actívalo en Ajustes o usa el servidor eD2k.";
+        else if (snapshot.Count == 0)
+            StatusMessage.Text = searching
+                ? "Búsqueda en curso. Si no aparecen resultados en unos segundos, prueba Global eD2k o comprueba el servidor."
+                : StatusMessage.Text;
     });
     private async void StopClicked(object? sender, RoutedEventArgs e) => await RunAsync(async () =>
     { await client.StopSearchAsync(); searching = false; await RefreshAsync(); StatusMessage.Text = "Búsqueda detenida. Se conservan los resultados recibidos."; });
@@ -105,7 +119,7 @@ public partial class SearchWindow : Window
     private void ScopeChanged(object? sender, SelectionChangedEventArgs e) => UpdateButtons();
     private void FilterChanged(object? sender, TextChangedEventArgs e) => ApplyFilter();
     private void SelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateButtons();
-    private void ShowDownloads(object? sender, RoutedEventArgs e) => Close();
+    private void ShowDownloads(object? sender, RoutedEventArgs e) => GoToDownloads?.Invoke();
     internal async Task ExerciseUiAsync()
     {
         for (int i = 0; i < 100 && (!available || busy); i++) await Task.Delay(50);

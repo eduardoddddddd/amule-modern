@@ -51,12 +51,29 @@ Check(UserFolders.Incoming().Replace('\\', '/').EndsWith("amule-modern/incoming"
 var parsed = ServerListFile.ParseText("# comentario\n203.0.113.41:4661 Nombre\ned2k://|server|203.0.113.42|4242|/\n203.0.113.41:4661 duplicado\n");
 Check(parsed.Count == 2 && parsed[0].Name == "Nombre" && parsed[1].Address == "203.0.113.42" && parsed[1].Port == "4242", "parse text server list and skip duplicates");
 byte[] met = [0x0E, 1, 0, 0, 0, 203, 0, 113, 40, 0x35, 0x12, 0, 0, 0, 0];
-Check(ServerListFile.Parse(met) is [{ Address: "203.0.113.40", Port: "4661" }], "parse minimal server.met");
+Check(ServerListFile.Parse(met) is [{ Address: "203.0.113.40", Port: "4661", Name: "" }], "parse minimal server.met");
+// Real server.met name tag: type=string, name="\x01" (ST_SERVERNAME), value="TestSrv"
+byte[] namedMet =
+[
+    0x0E, 1, 0, 0, 0, 203, 0, 113, 41, 0x35, 0x12, 1, 0, 0, 0,
+    2, 1, 0, 0x01, 7, 0, (byte)'T', (byte)'e', (byte)'s', (byte)'t', (byte)'S', (byte)'r', (byte)'v'
+];
+Check(ServerListFile.Parse(namedMet) is [{ Address: "203.0.113.41", Port: "4661", Name: "TestSrv" }], "parse server.met keeps ST_SERVERNAME");
+string probeMet = Path.Combine(Path.GetTempPath(), "server.met.probe");
+if (File.Exists(probeMet))
+{
+    var live = ServerListFile.Parse(File.ReadAllBytes(probeMet));
+    Check(live.Count >= 5 && live.Any(s => s.Name.Length > 0 && s.Name != s.Address), "public server.met probe retains names");
+}
 bool fileUrl = false, loopUrl = false, emptyList = false;
 try { await ServerListFile.DownloadAsync("file:///C:/servers.txt"); } catch (ArgumentException) { fileUrl = true; }
 try { await ServerListFile.DownloadAsync("http://127.0.0.1/servers.txt"); } catch (ArgumentException) { loopUrl = true; }
 try { ServerListFile.ParseText("   \n# solo comentarios\n"); } catch (ArgumentException) { emptyList = true; }
 Check(fileUrl && loopUrl && emptyList, "reject file URL, localhost URL and empty server list");
+Check(ServerListFile.ValidateUrl("upd.emule-security.org/server.met").AbsoluteUri == "https://upd.emule-security.org/server.met",
+    "scheme-less server list URL gets https");
+Check(ServerListFile.ValidateUrl("https://upd.emule-security.org/server.met").Host == "upd.emule-security.org",
+    "absolute https server list URL is accepted");
 var oversizedBody = new ImportStream(ServerListFile.MaxBytes * 4);
 using (var http = new HttpClient(new ImportTransport(_ => new(System.Net.HttpStatusCode.OK) { Content = new StreamContent(oversizedBody) })))
 {
@@ -73,7 +90,7 @@ using (var http = new HttpClient(new ImportTransport(_ => new(System.Net.HttpSta
 using (var http = new HttpClient(new ImportTransport(_ => new(System.Net.HttpStatusCode.NotFound))))
 {
     bool failed = false;
-    try { await ServerListFile.DownloadAsync("https://fixture.invalid/missing", http, TimeSpan.FromSeconds(2)); } catch (HttpRequestException) { failed = true; }
+    try { await ServerListFile.DownloadAsync("https://fixture.invalid/missing", http, TimeSpan.FromSeconds(2)); } catch (ArgumentException) { failed = true; }
     Check(failed, "HTTP 404 is an acquisition failure");
 }
 using (var http = new HttpClient(new ImportTransport(_ => { var response = new HttpResponseMessage(System.Net.HttpStatusCode.Found); response.Headers.Location = new Uri("http://127.0.0.1/private"); return response; })))
@@ -270,8 +287,8 @@ if (args.Contains("--integration"))
         try { await engine.Client.AddServerAsync("127.0.0.1", "70000", "invalid"); } catch (ArgumentException) { invalidPort = true; }
         Check(invalidPort, "reject out-of-range port without changing engine");
         Check(!(await engine.Client.GetNetworkStateAsync()).Connected, "saved server is not connected automatically");
-        int imported = await engine.Client.ImportServersAsync(ServerListFile.ParseText("203.0.113.35:4661 Importado\n203.0.113.31:4661 ya estaba\n"));
-        Check(imported == 1 && (await engine.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35"), "import adds only missing servers");
+        var imported = await engine.Client.ImportServersAsync(ServerListFile.ParseText("203.0.113.35:4661 Importado\n203.0.113.31:4661 ya estaba\n"));
+        Check(imported.Added == 1 && (await engine.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35"), "import adds only missing servers");
         await engine.Client.RemoveServerAsync((await engine.Client.GetServersAsync()).Single(s => s.Address == "203.0.113.35"));
         Check(!(await engine.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.35") && (await engine.Client.GetServersAsync()).Any(s => s.Endpoint == testServer.Endpoint), "remove one server and keep the others");
         var initialBw = await engine.Client.GetBandwidthAsync();

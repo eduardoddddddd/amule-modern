@@ -1,49 +1,92 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.ServersWindow"
-        Title="Servidores eD2k · aMule Modern" Width="1080" Height="700" MinWidth="960" MinHeight="620" Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
-  <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AmuleModern.Desktop.ServersWindow">
+  <Grid Margin="28,24" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
     <Grid ColumnDefinitions="*,Auto">
-      <StackPanel Spacing="7"><TextBlock Text="Servidores" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Añade, quita o importa servidores eD2k. Conectar es una acción aparte." FontSize="13" Foreground="#8C9DB5"/></StackPanel>
-      <Border Grid.Column="1" Background="#1B2C3B" CornerRadius="16" Padding="14,9" VerticalAlignment="Top"><TextBlock x:Name="NetworkBadge" Text="Consultando…" Foreground="#80DBC6" FontSize="12"/></Border>
+      <StackPanel Spacing="4">
+        <TextBlock Text="Servidores" FontSize="26" FontWeight="SemiBold"/>
+        <TextBlock Text="Añade o importa servidores eD2k. Conectar es una acción aparte." Classes="muted" FontSize="13"/>
+      </StackPanel>
+      <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top">
+        <TextBlock x:Name="NetworkBadge" Text="Consultando…" Classes="accent" FontSize="12"/>
+      </Border>
     </Grid>
-    <Border Grid.Row="1" Margin="0,23,0,16" Padding="18" Background="#192637" CornerRadius="10">
+
+    <Border Grid.Row="1" Classes="panel" Margin="0,20,0,14" Padding="16">
       <StackPanel Spacing="12">
-        <Grid ColumnDefinitions="*,14,*,14,105">
-          <StackPanel Spacing="6"><TextBlock Text="Nombre (opcional)" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="NameInput" PlaceholderText="Mi servidor" MaxLength="120"/></StackPanel>
-          <StackPanel Grid.Column="2" Spacing="6"><TextBlock Text="IP o dominio" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="AddressInput" PlaceholderText="Dirección del servidor" MaxLength="253"/></StackPanel>
-          <StackPanel Grid.Column="4" Spacing="6"><TextBlock Text="Puerto TCP" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="PortInput" Text="4661" MaxLength="5"/></StackPanel>
+        <TextBlock Text="AÑADIR SERVIDOR" Classes="section"/>
+        <Grid ColumnDefinitions="*,12,*,12,110">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Nombre (opcional)" Classes="muted" FontSize="12"/>
+            <TextBox x:Name="NameInput" PlaceholderText="Mi servidor" MaxLength="120"/>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6">
+            <TextBlock Text="IP o dominio" Classes="muted" FontSize="12"/>
+            <TextBox x:Name="AddressInput" PlaceholderText="Dirección del servidor" MaxLength="253"/>
+          </StackPanel>
+          <StackPanel Grid.Column="4" Spacing="6">
+            <TextBlock Text="Puerto TCP" Classes="muted" FontSize="12"/>
+            <TextBox x:Name="PortInput" Text="4661" MaxLength="5"/>
+          </StackPanel>
         </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-          <TextBox x:Name="ImportUrlInput" Width="280" PlaceholderText="https://… lista de servidores" MaxLength="500"/>
-          <Button x:Name="ImportUrlButton" Content="Importar URL" Click="ImportUrl" IsEnabled="False"/>
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
           <Button x:Name="AddOnlyButton" Content="Añadir" Click="AddOnly" IsEnabled="False"/>
           <Button x:Name="AddConnectButton" Classes="primary" Content="Añadir y conectar" Click="AddAndConnect" IsEnabled="False"/>
         </StackPanel>
       </StackPanel>
     </Border>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,12"><TextBlock Text="SERVIDORES GUARDADOS" Foreground="#8C9DB5" LetterSpacing="1" FontSize="11" VerticalAlignment="Center"/><Button Grid.Column="1" x:Name="RefreshServersButton" Content="↻  Actualizar" Click="RefreshClicked" IsEnabled="False"/></Grid>
-    <Border Grid.Row="3" BorderBrush="#263448" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-      <Grid>
-        <DataGrid x:Name="ServerGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionChanged="SelectionChanged" RowHeight="44" GridLinesVisibility="None" Background="#131F2D" BorderThickness="0">
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="NOMBRE" Binding="{Binding Name}" Width="*" MinWidth="160"/>
-            <DataGridTextColumn Header="DIRECCIÓN" Binding="{Binding Endpoint}" Width="190"/>
-            <DataGridTextColumn Header="USUARIOS" Binding="{Binding UsersText}" Width="115"/>
-            <DataGridTextColumn Header="ARCHIVOS" Binding="{Binding FilesText}" Width="115"/>
-            <DataGridTextColumn Header="PING" Binding="{Binding PingText}" Width="90"/>
-          </DataGrid.Columns>
-        </DataGrid>
-        <TextBlock x:Name="EmptyServers" Text="Todavía no has añadido servidores.&#10;Introduce su dirección y puerto en el formulario." TextAlignment="Center" LineHeight="23" Foreground="#8C9DB5" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
-      </Grid>
+
+    <Border Grid.Row="2" Classes="card" Margin="0,0,0,14" Padding="16">
+      <StackPanel Spacing="10">
+        <TextBlock Text="IMPORTAR LISTA (URL O ARCHIVO)" Classes="section"/>
+        <TextBlock Text="Pega la URL directa de un server.met. Si omites https:// se añade solo. No uses la página HTML del listado."
+                   Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="*,10,Auto,8,Auto,8,Auto">
+          <TextBox x:Name="ImportUrlInput" PlaceholderText="https://upd.emule-security.org/server.met" MaxLength="500"/>
+          <Button Grid.Column="2" x:Name="ExampleUrlButton" Content="Ejemplo" Click="UseExampleUrl" IsEnabled="False"
+                  ToolTip.Tip="Rellena con una URL pública conocida de server.met"/>
+          <Button Grid.Column="4" x:Name="ImportUrlButton" Classes="primary" Content="Importar URL" Click="ImportUrl" IsEnabled="False"/>
+          <Button Grid.Column="6" x:Name="ImportFileButton" Content="Archivo…" Click="ImportFile" IsEnabled="False"/>
+        </Grid>
+      </StackPanel>
     </Border>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,14,0,14">
-      <StackPanel VerticalAlignment="Center" Spacing="4"><TextBlock x:Name="CurrentServer" Text="Sin servidor conectado" FontSize="12"/><TextBlock Text="La lista se guarda en el perfil de aMule." FontSize="11" Foreground="#8C9DB5"/></StackPanel>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+
+    <Grid Grid.Row="3" RowDefinitions="Auto,*">
+      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+        <TextBlock Text="SERVIDORES GUARDADOS" Classes="section" VerticalAlignment="Center"/>
+        <Button Grid.Column="1" x:Name="RefreshServersButton" Content="↻  Actualizar" Click="RefreshClicked" IsEnabled="False"/>
+      </Grid>
+      <Border Grid.Row="1" Classes="card" ClipToBounds="True">
+        <Grid>
+          <DataGrid x:Name="ServerGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                    SelectionChanged="SelectionChanged" HeadersVisibility="Column">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="NOMBRE" Binding="{Binding Name}" Width="*"/>
+              <DataGridTextColumn Header="DIRECCIÓN" Binding="{Binding Endpoint}" Width="180"/>
+              <DataGridTextColumn Header="USUARIOS" Binding="{Binding UsersText}" Width="100"/>
+              <DataGridTextColumn Header="ARCHIVOS" Binding="{Binding FilesText}" Width="100"/>
+              <DataGridTextColumn Header="PING" Binding="{Binding PingText}" Width="80"/>
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBlock x:Name="EmptyServers" Text="Todavía no hay servidores.&#10;Añade uno o importa una lista."
+                     TextAlignment="Center" LineHeight="22" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,12,0,10">
+      <StackPanel VerticalAlignment="Center" Spacing="2">
+        <TextBlock x:Name="CurrentServer" Text="Sin servidor conectado" FontSize="12"/>
+        <TextBlock Text="La lista se guarda en el perfil de aMule." Classes="muted" FontSize="11"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
         <Button x:Name="RemoveButton" Content="Quitar" Click="RemoveSelected" IsEnabled="False"/>
-        <Button x:Name="ImportFileButton" Content="Importar archivo…" Click="ImportFile" IsEnabled="False"/>
         <Button x:Name="DisconnectButton" Content="Desconectar" Click="Disconnect" IsEnabled="False"/>
-        <Button x:Name="ConnectButton" Classes="primary" Content="Conectar al seleccionado" Click="ConnectSelected" IsEnabled="False"/>
+        <Button x:Name="ConnectButton" Classes="primary" Content="Conectar" Click="ConnectSelected" IsEnabled="False"/>
       </StackPanel>
     </Grid>
-    <Border Grid.Row="5" Background="#192637" CornerRadius="8" Padding="13"><TextBlock x:Name="ServerMessage" Text="Cargando servidores…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12"/></Border>
+
+    <Border Grid.Row="5" Classes="panel" Padding="14,10">
+      <TextBlock x:Name="ServerMessage" Text="Cargando servidores…" TextWrapping="Wrap" Classes="muted" FontSize="12"/>
+    </Border>
   </Grid>
-</Window>
+</UserControl>

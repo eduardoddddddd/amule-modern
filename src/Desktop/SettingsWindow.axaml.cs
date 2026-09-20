@@ -6,10 +6,11 @@ using System.Diagnostics;
 
 namespace AmuleModern.Desktop;
 
-public partial class SettingsWindow : Window
+public partial class SettingsWindow : UserControl
 {
     private readonly EngineSession engine = null!;
     private bool busy;
+    public bool IsBusy => busy;
     public SettingsWindow() => InitializeComponent();
     public SettingsWindow(EngineSession engine) : this()
     {
@@ -19,8 +20,13 @@ public partial class SettingsWindow : Window
         StatusMessage.Text = UserFolders.IsIsolatedProfile(Path.GetFileName(engine.ProfilePath))
             ? "Este perfil de prueba usa carpetas aisladas dentro de .local."
             : $"Por defecto: {UserFolders.Incoming()}";
-        Opened += async (_, _) => { await RefreshLimitsAsync(); await RefreshKadAsync(); };
-        Closing += (_, e) => { if (busy) e.Cancel = true; };
+        AttachedToVisualTree += async (_, _) =>
+        {
+            IncomingInput.Text = engine.IncomingPath;
+            TempInput.Text = engine.TempPath;
+            await RefreshLimitsAsync();
+            await RefreshKadAsync();
+        };
     }
     private async Task RefreshLimitsAsync()
     {
@@ -104,7 +110,7 @@ public partial class SettingsWindow : Window
     private async void BrowseTemp(object? sender, RoutedEventArgs e) => TempInput.Text = await PickFolderAsync(TempInput.Text) ?? TempInput.Text;
     private async Task<string?> PickFolderAsync(string? current)
     {
-        var storage = StorageProvider;
+        var storage = UiHost.StorageOf(this);
         var options = new FolderPickerOpenOptions { Title = "Elige una carpeta", AllowMultiple = false };
         if (!string.IsNullOrWhiteSpace(current) && Directory.Exists(current))
             options.SuggestedStartLocation = await storage.TryGetFolderFromPathAsync(current);

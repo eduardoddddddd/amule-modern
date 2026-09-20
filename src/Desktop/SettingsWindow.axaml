@@ -1,57 +1,62 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.SettingsWindow"
-        Title="Ajustes · aMule Modern" Width="720" Height="780" MinWidth="640" MinHeight="680"
-        Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
-  <Grid Margin="28" RowDefinitions="Auto,*,Auto,Auto">
-    <StackPanel Spacing="7">
-      <TextBlock Text="Ajustes" FontSize="28" FontWeight="SemiBold" />
-      <TextBlock Text="Las descargas van a tu carpeta Descargas, no al repositorio. El perfil del motor sigue aislado en .local." FontSize="13" Foreground="#8C9DB5" TextWrapping="Wrap" />
-    </StackPanel>
-    <StackPanel Grid.Row="1" Margin="0,24,0,0" Spacing="18">
-      <StackPanel Spacing="8">
-        <TextBlock Text="DESCARGAS COMPLETADAS (INCOMING)" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
-        <Grid ColumnDefinitions="*,10,Auto">
-          <TextBox x:Name="IncomingInput" />
-          <Button Grid.Column="2" Content="Elegir…" Click="BrowseIncoming" />
-        </Grid>
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AmuleModern.Desktop.SettingsWindow">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <Grid Margin="28,24" RowDefinitions="Auto,*,Auto,Auto" MinWidth="480">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Ajustes" FontSize="26" FontWeight="SemiBold"/>
+        <TextBlock Text="Carpetas, límites y red. El tema de la interfaz está en la barra lateral." Classes="muted" FontSize="13" TextWrapping="Wrap"/>
       </StackPanel>
-      <StackPanel Spacing="8">
-        <TextBlock Text="ARCHIVOS TEMPORALES (TMP)" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
-        <Grid ColumnDefinitions="*,10,Auto">
-          <TextBox x:Name="TempInput" />
-          <Button Grid.Column="2" Content="Elegir…" Click="BrowseTemp" />
-        </Grid>
-      </StackPanel>
-      <TextBlock Text="Al aplicar carpetas se reinicia el motor. No puedes cambiar tmp si hay descargas pendientes, incluidas las pausadas. Los archivos ya completados permanecen en su carpeta anterior." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" LineHeight="20" />
-      <StackPanel Spacing="8">
-        <TextBlock Text="LÍMITES DE ANCHO DE BANDA (KIB/S)" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
-        <TextBlock Text="0 es ilimitado. Si la subida es muy baja, aMule puede recortar la bajada. No hace falta reiniciar el motor." FontSize="12" Foreground="#899DB7" TextWrapping="Wrap" />
-        <Grid ColumnDefinitions="*,14,*">
-          <StackPanel Spacing="6">
-            <TextBlock Text="Bajada" FontSize="12" Foreground="#A6B2C6" />
-            <TextBox x:Name="DownloadLimitInput" PlaceholderText="0 = ilimitado" MaxLength="6" />
+      <StackPanel Grid.Row="1" Margin="0,22,0,0" Spacing="18">
+        <Border Classes="panel" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="DESCARGAS COMPLETADAS (INCOMING)" Classes="section"/>
+            <Grid ColumnDefinitions="*,10,Auto">
+              <TextBox x:Name="IncomingInput"/>
+              <Button Grid.Column="2" Content="Elegir…" Click="BrowseIncoming"/>
+            </Grid>
+            <TextBlock Text="ARCHIVOS TEMPORALES (TMP)" Classes="section" Margin="0,8,0,0"/>
+            <Grid ColumnDefinitions="*,10,Auto">
+              <TextBox x:Name="TempInput"/>
+              <Button Grid.Column="2" Content="Elegir…" Click="BrowseTemp"/>
+            </Grid>
+            <TextBlock Text="Al aplicar carpetas se reinicia el motor. No puedes cambiar tmp si hay descargas pendientes." Classes="muted" FontSize="12" TextWrapping="Wrap" LineHeight="18"/>
           </StackPanel>
-          <StackPanel Grid.Column="2" Spacing="6">
-            <TextBlock Text="Subida" FontSize="12" Foreground="#A6B2C6" />
-            <TextBox x:Name="UploadLimitInput" PlaceholderText="0 = ilimitado" MaxLength="6" />
+        </Border>
+        <Border Classes="panel" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="LÍMITES DE ANCHO DE BANDA (KIB/S)" Classes="section"/>
+            <TextBlock Text="0 es ilimitado. Si la subida es muy baja, aMule puede recortar la bajada." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,14,*">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Bajada" Classes="muted" FontSize="12"/>
+                <TextBox x:Name="DownloadLimitInput" PlaceholderText="0 = ilimitado" MaxLength="6"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Text="Subida" Classes="muted" FontSize="12"/>
+                <TextBox x:Name="UploadLimitInput" PlaceholderText="0 = ilimitado" MaxLength="6"/>
+              </StackPanel>
+            </Grid>
+            <Button x:Name="ApplyLimitsButton" Content="Aplicar límites" Click="ApplyLimitsClicked" HorizontalAlignment="Left"/>
           </StackPanel>
-        </Grid>
-        <Button x:Name="ApplyLimitsButton" Content="Aplicar límites" Click="ApplyLimitsClicked" HorizontalAlignment="Left" />
+        </Border>
+        <Border Classes="panel" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="RED KAD" Classes="section"/>
+            <TextBlock x:Name="KadStatus" Text="Kad está desactivado. No se abre el cortafuegos." FontSize="12" Classes="muted" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="KadEnableButton" Content="Activar Kad" Click="EnableKad"/>
+              <Button x:Name="KadDisableButton" Content="Desactivar Kad" Click="DisableKad"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </StackPanel>
-      <StackPanel Spacing="8">
-        <TextBlock Text="RED KAD" FontSize="11" Foreground="#8C9DB5" LetterSpacing="1" />
-        <TextBlock x:Name="KadStatus" Text="Kad está desactivado. No se abre el cortafuegos." FontSize="12" Foreground="#ABBAD0" TextWrapping="Wrap" />
-        <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button x:Name="KadEnableButton" Content="Activar Kad" Click="EnableKad" />
-          <Button x:Name="KadDisableButton" Content="Desactivar Kad" Click="DisableKad" />
-        </StackPanel>
+      <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16">
+        <Button Content="Abrir Incoming" Click="OpenIncoming"/>
+        <Button x:Name="ApplyButton" Classes="primary" Content="Aplicar y reiniciar motor" Click="ApplyClicked"/>
       </StackPanel>
-    </StackPanel>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,16">
-      <Button Content="Abrir Incoming" Click="OpenIncoming" />
-      <Button x:Name="ApplyButton" Classes="primary" Content="Aplicar y reiniciar motor" Click="ApplyClicked" />
-    </StackPanel>
-    <Border Grid.Row="3" Background="#192637" CornerRadius="8" Padding="13">
-      <TextBlock x:Name="StatusMessage" Text="Revisa las rutas antes de aplicar." TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12" />
-    </Border>
-  </Grid>
-</Window>
+      <Border Grid.Row="3" Classes="panel" Padding="14,10">
+        <TextBlock x:Name="StatusMessage" Text="Revisa las rutas antes de aplicar." TextWrapping="Wrap" Classes="muted" FontSize="12"/>
+      </Border>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

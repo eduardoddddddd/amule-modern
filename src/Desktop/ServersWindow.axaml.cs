@@ -7,13 +7,13 @@ using Avalonia.Threading;
 
 namespace AmuleModern.Desktop;
 
-public partial class ServersWindow : Window
+public partial class ServersWindow : UserControl
 {
     private readonly EcClient client = null!;
     private readonly ObservableCollection<ServerItem> servers = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool busy, available, isClosed;
+    private bool busy, available, isClosed, ed2kReady;
     private NetworkState? state;
     private string? requestedEndpoint;
     public ServersWindow()
@@ -23,13 +23,21 @@ public partial class ServersWindow : Window
     public ServersWindow(EcClient client) : this()
     {
         this.client = client;
-        Opened += async (_, _) =>
+        AttachedToVisualTree += async (_, _) =>
         {
-            await ExecuteAsync(async () => { await client.EnableEd2kAsync(); available = true; }, "Listo. Añadir guarda el servidor; la conexión comienza solo al pulsar Conectar.");
+            isClosed = false;
+            if (!ed2kReady)
+            {
+                await ExecuteAsync(async () => { await client.EnableEd2kAsync(); available = true; ed2kReady = true; },
+                    "Listo. Añadir guarda el servidor; la conexión comienza solo al pulsar Conectar.");
+            }
+            else
+            {
+                await ExecuteAsync(async () => { available = true; }, null);
+            }
             if (available && !isClosed) timer.Start();
         };
-        Closing += (_, e) => { if (busy) e.Cancel = true; };
-        Closed += (_, _) => { isClosed = true; timer.Stop(); };
+        DetachedFromVisualTree += (_, _) => { timer.Stop(); isClosed = true; };
         timer.Tick += async (_, _) =>
         {
             if (busy || isClosed || !await gate.WaitAsync(0)) return;
@@ -41,7 +49,8 @@ public partial class ServersWindow : Window
     private void UpdateButtons()
     {
         if (AddOnlyButton == null) return;
-        AddOnlyButton.IsEnabled = RefreshServersButton.IsEnabled = ImportFileButton.IsEnabled = ImportUrlButton.IsEnabled = available && !busy;
+        AddOnlyButton.IsEnabled = RefreshServersButton.IsEnabled = ImportFileButton.IsEnabled =
+            ImportUrlButton.IsEnabled = ExampleUrlButton.IsEnabled = available && !busy;
         AddConnectButton.IsEnabled = available && !busy && state?.Connecting != true;
         ConnectButton.IsEnabled = available && !busy && state?.Connecting != true && ServerGrid.SelectedItem is ServerItem;
         RemoveButton.IsEnabled = available && !busy && ServerGrid.SelectedItem is ServerItem;
@@ -70,11 +79,11 @@ public partial class ServersWindow : Window
         }
         UpdateButtons();
     }
-    private async Task ExecuteAsync(Func<Task> action, string success)
+    private async Task ExecuteAsync(Func<Task> action, string? success)
     {
         if (busy || isClosed) return;
         await gate.WaitAsync(); busy = true; UpdateButtons();
-        try { await action(); ServerMessage.Text = success; await RefreshAsync(); }
+        try { await action(); if (success != null) ServerMessage.Text = success; await RefreshAsync(); }
         catch (Exception ex) when (ex is ArgumentException or EcCommandException) { ServerMessage.Text = ex.Message; }
         catch (Exception ex) { available = false; timer.Stop(); NetworkBadge.Text = "Estado desconocido"; ServerMessage.Text = "No se pudo consultar el motor: " + ex.Message; }
         finally { busy = false; gate.Release(); UpdateButtons(); }
@@ -103,7 +112,7 @@ public partial class ServersWindow : Window
         var confirm = new ConfirmWindow("Quitar servidor",
             $"Se quitará «{selected.Name}» ({selected.Endpoint}) de la lista del perfil. No se borra nada en disco.",
             "Quitar");
-        await confirm.ShowDialog(this);
+        await confirm.ShowDialog(UiHost.WindowOf(this));
         if (!confirm.Accepted) return;
         await ExecuteAsync(async () => await client.RemoveServerAsync(selected), "Servidor quitado de la lista.");
     }
@@ -111,7 +120,7 @@ public partial class ServersWindow : Window
     {
         try
         {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await UiHost.StorageOf(this).OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Importar lista de servidores",
             AllowMultiple = false,
@@ -128,13 +137,33 @@ public partial class ServersWindow : Window
         }
         catch (Exception ex) { ServerMessage.Text = "No se pudo abrir la lista: " + ex.Message; }
     }
-    private static string ImportMessage(int added) => added == 0
-        ? "Ningún servidor nuevo: las entradas ya estaban en la lista."
-        : added == 1 ? "Importado 1 servidor nuevo." : $"Importados {added} servidores nuevos.";
+    private static string ImportMessage(int added, int renamed)
+    {
+        if (added == 0 && renamed == 0) return "Ningún servidor nuevo: las entradas ya estaban en la lista.";
+        string part = added == 0 ? "" : added == 1 ? "Importado 1 servidor nuevo" : $"Importados {added} servidores nuevos";
+        if (renamed > 0)
+        {
+            string names = renamed == 1 ? "actualizado 1 nombre" : $"actualizados {renamed} nombres";
+            part = part.Length == 0 ? char.ToUpperInvariant(names[0]) + names[1..] : part + "; " + names;
+        }
+        return part + ".";
+    }
+    private void UseExampleUrl(object? sender, RoutedEventArgs e)
+    {
+        ImportUrlInput.Text = ServerListFile.ExampleUrl;
+        ServerMessage.Text = "URL de ejemplo lista. Pulsa Importar URL para descargar el server.met.";
+    }
     private async void ImportUrl(object? sender, RoutedEventArgs e)
     {
         string url = ImportUrlInput.Text ?? "";
-        await ImportSourceAsync(() => ServerListFile.DownloadAsync(url));
+        try
+        {
+            var uri = ServerListFile.ValidateUrl(url);
+            ImportUrlInput.Text = uri.AbsoluteUri;
+            ServerMessage.Text = "Descargando " + uri.Host + "…";
+        }
+        catch (ArgumentException ex) { ServerMessage.Text = ex.Message; return; }
+        await ImportSourceAsync(() => ServerListFile.DownloadAsync(ImportUrlInput.Text ?? url));
     }
     private Task ImportBytesAsync(byte[] data) => ImportSourceAsync(() => Task.FromResult(data));
     private async Task ImportSourceAsync(Func<Task<byte[]>> read)
@@ -145,13 +174,14 @@ public partial class ServersWindow : Window
             byte[] data;
             try { data = await read(); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Net.Http.HttpRequestException or OperationCanceledException)
-            { throw new ArgumentException("No se pudo leer la lista (archivo, conexión o plazo de 15 s): " + ex.Message, ex); }
+            { throw new ArgumentException("No se pudo leer la lista (archivo, conexión o plazo HTTP de 30 s): " + ex.Message, ex); }
             // Only acquisition errors are translated. EC transport failures still disable
             // the disconnected client and cannot be mistaken for an HTTP/file failure.
             result = ImportMessage(await client.ImportServersAsync(ServerListFile.Parse(data)));
         }, "Importación terminada.");
         if (result != null && available) ServerMessage.Text = result;
     }
+    private static string ImportMessage((int Added, int Renamed) counts) => ImportMessage(counts.Added, counts.Renamed);
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await ExecuteAsync(() => Task.CompletedTask, "Lista actualizada.");
     private void SelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateButtons();
     internal async Task ExerciseUiAsync()
@@ -186,12 +216,16 @@ public partial class ServersWindow : Window
         await gate.WaitAsync(); gate.Release();
         if (ServerMessage.Text is null || !ServerMessage.Text.Contains("http", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Importar URL no rechaza file://.");
+        ImportUrlInput.Text = "upd.emule-security.org/server.met";
+        // Scheme-less URLs are normalized; do not hit the network in the UI exercise.
+        if (ServerListFile.ValidateUrl(ImportUrlInput.Text).Host != "upd.emule-security.org")
+            throw new InvalidOperationException("La URL sin https:// no se normaliza.");
         await ImportBytesAsync("203.0.113.34:4661 Importado UI\n"u8.ToArray());
         await gate.WaitAsync(); gate.Release();
         if (!servers.Any(s => s.Address == "203.0.113.34")) throw new InvalidOperationException("Importar archivo no añadió el servidor de prueba.");
         ServerGrid.SelectedItem = servers.First(s => s.Address == "203.0.113.32");
         RemoveButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        var confirm = OwnedWindows.OfType<ConfirmWindow>().Single();
+        var confirm = UiHost.WindowOf(this).OwnedWindows.OfType<ConfirmWindow>().Single();
         confirm.FindControl<Button>("AcceptButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         for (int i = 0; i < 100 && servers.Any(s => s.Address == "203.0.113.32"); i++) await Task.Delay(50);
         await gate.WaitAsync(); gate.Release();

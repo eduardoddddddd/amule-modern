@@ -1,0 +1,142 @@
+  Determinando los proyectos que se van a restaurar...
+  Todos los proyectos están actualizados para la restauración.
+  Amule -> C:\Users\Edu\source\amule-modern\src\Amule\bin\Release\net10.0\Amule.dll
+  Desktop -> C:\Users\Edu\source\amule-modern\src\Desktop\bin\Release\net10.0\AmuleModern.dll
+  Smoke -> C:\Users\Edu\source\amule-modern\tests\Smoke\bin\Release\net10.0\Smoke.dll
+
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+Tiempo transcurrido 00:00:01.25
+PASS: golden EC stats request
+PASS: independent nested tag fixture
+PASS: nested packet wire encoding
+PASS: truncated tag
+PASS: trailing packet data
+PASS: parent shorter than its children
+PASS: user library lives under Downloads/amule-modern
+PASS: parse text server list and skip duplicates
+PASS: parse minimal server.met
+PASS: reject file URL, localhost URL and empty server list
+PASS: unknown-length HTTP body stops after limit plus one byte
+PASS: deadline cancels a stalled response body after headers
+PASS: HTTP 404 is an acquisition failure
+PASS: redirect destinations receive the same URL validation
+PASS: high bandwidth limits are preserved and only exact legacy sentinel is unlimited
+PASS: oversized local list is rejected before reading its contents
+PASS: locked local list reports an acquisition error
+PASS: bundled layout finds engine next to the app
+PASS: repository layout uses vendor amuled
+PASS: salt without leading zero padding
+PASS: fragmented TCP authentication
+PASS: legacy migration copies pending metadata once
+PASS: cancelled migrated file is not resurrected from retained backup
+PASS: existing external library never imports stale profile backups
+PASS: real amuled process and EC auth
+PASS: integration folders stay inside the isolated profile
+ENGINE: 3.0.1; EC: 127.0.0.1:55154
+PASS: real engine rejects wrong password
+PASS: isolated empty queue
+PASS: isolated empty shared list
+PASS: changing Incoming with an empty queue restarts with requested directory
+PASS: unusable destination is rejected without stopping the motor
+PASS: incoming file appears in shared list after reload
+PASS: extra shared directory persisted
+PASS: extra folder file appears in shared list
+PASS: reject Incoming, Temp and the engine profile as extra shares
+PASS: removing extra shared directory
+PASS: empty share can be removed while another saved folder is missing
+PASS: missing shared folder can be removed by saved path
+PASS: Kad starts disabled
+PASS: sharing does not enqueue downloads
+PASS: add link and read real queue
+PASS: pause real download
+PASS: changing Temp with a paused download preserves the running motor and queue
+PASS: resume real download
+PASS: EC reconnect keeps the same amuled process
+PASS: queue readable after EC reconnect
+PASS: full queue detail includes session ECID
+PASS: pause several downloads in one EC command
+PASS: cancel removes one download and keeps the other
+PASS: real stats request
+PASS: enable eD2k without enabling Kad or autoconnect
+PASS: Kad preference enabled
+PASS: Kad start leaves the network running
+PASS: Kad preference disabled again
+PASS: Kad stop leaves the network inactive
+PASS: add and list real saved server
+PASS: adding duplicate is idempotent
+PASS: reject out-of-range port without changing engine
+PASS: saved server is not connected automatically
+PASS: import adds only missing servers
+PASS: remove one server and keep the others
+PASS: bandwidth starts unlimited
+PASS: real engine roundtrip preserves 80000 KiB/s limits
+PASS: set download and upload limits in KiB/s
+PASS: stats expose bandwidth limits in bytes/s
+PASS: engine caps download when upload is below 4 KiB/s
+PASS: reject bandwidth above the documented cap
+PASS: engine opens real eD2k TCP session
+PASS: eD2k login packet received by controlled server
+PASS: TCP alone is not reported as connected eD2k
+PASS: confirmed eD2k connection and HighID decoded
+PASS: real eD2k server receives search terms
+PASS: real server result decoded through engine EC
+PASS: search result added to real download queue
+PASS: stop search preserves received results
+PASS: disconnect established eD2k session
+PASS: graceful shutdown without kill
+PASS: queue and paused state survive restart
+PASS: cancelled download does not return after restart
+PASS: saved server list survives restart
+PASS: removed imported server does not return after restart
+PASS: bandwidth limits survive restart
+PASS: restart does not autoconnect
+PASS: restart keeps Kad disabled
+PASS: incoming shared file survives restart
+PASS: removed extra share does not return after restart
+PASS: Windows temporary files use the intended profile directory
+PASS: isolated profiles do not use the user Downloads library
+NOTE: controlled same-host LAN eD2k handshake verified. No public server or file payload tested in this suite.
+RESULT: 88 checks passed.
+  Amule -> C:\Users\Edu\source\amule-modern\src\Amule\bin\Release\net10.0\Amule.dll
+  Desktop -> C:\Users\Edu\source\amule-modern\src\Desktop\bin\Release\net10.0\win-x64\AmuleModern.dll
+  Desktop -> C:\Users\Edu\source\amule-modern\artifacts\app\
+Desinstalados los archivos inventariados y sin modificar de C:\Users\Edu\source\amule-modern\.local\uninstall-test-5b25b0da6fd14d92a913626c446be998\portable.
+Archivos modificados conservados: 1. Los archivos ajenos se conservan.
+Perfil .local conservado.
+PASS: default target is the folder containing the portable uninstaller
+PASS: a different installation remains untouched
+PASS: unowned and modified files are preserved
+PASS: profile is preserved by default
+PASS: missing inventory is rejected without deleting files
+PASS: traversal is rejected before any package file is removed
+PASS: junction escape is rejected before deletion
+Desinstalados los archivos inventariados y sin modificar de C:\Users\Edu\source\amule-modern\.local\uninstall-test-5b25b0da6fd14d92a913626c446be998\remove-profile.
+Archivos modificados conservados: 0. Los archivos ajenos se conservan.
+PASS: explicit profile removal preserves unrelated root files
+RESULT: 8 uninstall checks passed. Fixtures retained under C:\Users\Edu\source\amule-modern\.local\uninstall-test-5b25b0da6fd14d92a913626c446be998.
+Instalado en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\installed app (por usuario, sin administrador).
+Las descargas siguen en Descargas\amule-modern. El perfil del motor queda en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\installed app\.local.
+PASS: installation includes engine and uninstall inventory
+Instalado en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\installed app (por usuario, sin administrador).
+Las descargas siguen en Descargas\amule-modern. El perfil del motor queda en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\installed app\.local.
+PASS: updating a package preserves unrelated files inside package directories
+PASS: installed app in a path with spaces launches its bundled motor and exits cleanly
+Desinstalados los archivos inventariados y sin modificar de C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\installed app.
+Archivos modificados conservados: 0. Los archivos ajenos se conservan.
+PASS: packaged uninstaller removes its installation while retaining unrelated files
+Instalado en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\profile-preserved (por usuario, sin administrador).
+Las descargas siguen en Descargas\amule-modern. El perfil del motor queda en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\profile-preserved\.local.
+Desinstalados los archivos inventariados y sin modificar de C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\profile-preserved.
+Archivos modificados conservados: 0. Los archivos ajenos se conservan.
+Perfil .local conservado.
+Instalado en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\profile-preserved (por usuario, sin administrador).
+Las descargas siguen en Descargas\amule-modern. El perfil del motor queda en C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\profile-preserved\.local.
+PASS: reinstall accepts and preserves the retained profile
+Desinstalados los archivos inventariados y sin modificar de C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf\profile-preserved.
+Archivos modificados conservados: 0. Los archivos ajenos se conservan.
+RESULT: 5 package/install checks passed. Fixtures retained under C:\Users\Edu\source\amule-modern\.local\install-test-94eabb6498ae4bd9a2a9c5a4589abecf.
+PASS: servers UI validation, add, import, remove, duplicate, disconnected state. Real engine.
+UI acquisition regressions: simulated HTTP 404, permission and cancellation errors; missing file read; controls enabled and subsequent real EC request succeeds.
