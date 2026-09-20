@@ -14,6 +14,46 @@ Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proce
 
 eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y conectar a mano. Kad empieza desactivado.
 
+## Cerrar y lista de servidores
+
+Usa **Salir y detener** (barra lateral o menú de la bandeja). La X solo oculta a la bandeja; un cierre forzado del proceso **no escribe** `server.met` y la lista desaparece al volver a abrir.
+
+Al entrar en Servidores, si la tabla está vacía: **Ejemplo → Importar URL** (`https://upd.emule-security.org/server.met`). La importación guarda nombres del `server.met`. Conectar es un paso aparte: selecciona un servidor y pulsa Conectar.
+
+Hay dos perfiles distintos si mezclas el exe del repo y el instalado:
+
+- Instalación: `%LOCALAPPDATA%\AmuleModern\.local\desktop`
+- Checkout: `.local\desktop` del repositorio
+
+Usa un solo acceso (el del Escritorio o Inicio). No lances dos `amuled` a la vez.
+
+## Qué falta para 1.0
+
+Esto es **0.9.2-dev**: sirve para el uso diario (buscar, descargar, servidores, compartidos, bandeja, instalador), no es un 1.0.
+
+**Debe estar antes de llamar 1.0**
+
+- Panel de detalle de cada descarga (ruta, hash, fuentes).
+- Asociación opcional y reversible de `ed2k://`.
+- Guardar columnas (ancho, orden, visibilidad) y densidad de filas.
+- Cierre siempre ordenado, de modo que la lista de servidores y la cola no dependan de no matar el proceso.
+- Sesión larga (8–24 h) y suspensión/reanudación de Windows sin corromper la cola.
+
+**Debería estar**
+
+- Categorías de descargas.
+- Inicio con Windows, desactivado por defecto.
+- Prueba formal de checksum de una descarga real (ya se ha completado una a mano).
+- Instalador firmado (si no, SmartScreen avisará).
+
+**Puede esperar**
+
+- Windows 10 y ARM64 validados; Linux y macOS.
+- Varias búsquedas activas a la vez en el motor (hoy: una viva + pestañas instantánea).
+- Motor remoto, plugins, migración de parciales desde eMule/aMule antiguo.
+
+El plan completo está en [docs/PLAN.md](docs/PLAN.md). El estado ejecutado, en [docs/STATUS.md](docs/STATUS.md).
+
 ## Arrancar
 
 Doble clic en `Iniciar.cmd`. Para preparar otro checkout desde PowerShell:
