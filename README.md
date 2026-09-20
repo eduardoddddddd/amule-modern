@@ -1,8 +1,21 @@
+<p align="center">
+  <img src="docs/github-banner.png" alt="aMule Modern" width="800">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/estado-0.9.2--dev-yellow" alt="0.9.2-dev">
+  <img src="https://img.shields.io/badge/Windows-x64-0078D4?logo=windows&logoColor=white" alt="Windows x64">
+  <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white" alt=".NET 10">
+  <img src="https://img.shields.io/badge/Avalonia-12-8B5CF6" alt="Avalonia">
+  <img src="https://img.shields.io/badge/motor-aMule%203.0.1-1D4ED8" alt="aMule 3.0.1">
+  <img src="https://img.shields.io/badge/licencia-GPL--2.0--or--later-blue" alt="GPL-2.0-or-later">
+</p>
+
 # aMule Modern
 
 Interfaz de escritorio para Windows en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC.
 
-**Estado: incremento funcional 0.9.2-dev.** Una sola ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores con nombre, ZIP portable e instalador por usuario. La X oculta a la bandeja; «Salir y detener» cierra aMule y guarda la lista de servidores.
+**No es la versión 1.0.** Estado actual: **0.9.2-dev** — usable a diario (una ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores, ZIP portable e instalador por usuario). La X oculta a la bandeja; «Salir y detener» cierra aMule y guarda la lista de servidores.
 
 ## Qué hace hoy
 
