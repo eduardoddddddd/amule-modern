@@ -47,7 +47,7 @@ public sealed class EngineSession : IAsyncDisposable
             hash = EcClient.Md5Hex(Convert.ToHexString(RandomNumberGenerator.GetBytes(32)));
             string incoming = Path.Combine(ProfilePath, "Incoming"), temp = Path.Combine(ProfilePath, "Temp");
             Directory.CreateDirectory(incoming); Directory.CreateDirectory(temp);
-            // Deliberately offline until first-run networking and folder selection are implemented.
+            // Minimal isolated profile, normalized below before launching the motor.
             string text = $"[eMule]\nNick=AmuleModern\nAppVersion=3.0.1\nIncomingDir={incoming}\nTempDir={temp}\nPort={FreePort()}\nUDPPort={FreePort()}\nAutoconnect=0\nReconnect=0\nConnectToKad=0\nConnectToED2K=0\nUPnPEnabled=0\n[ExternalConnect]\nAcceptExternalConnections=1\nECAddress=127.0.0.1\nECPort={Port}\nECPassword={hash}\n[WebServer]\nEnabled=0\n";
             File.WriteAllText(config, text, new UTF8Encoding(false));
         }
@@ -57,6 +57,34 @@ public sealed class EngineSession : IAsyncDisposable
             var lines = File.ReadAllLines(config);
             Port = int.Parse(lines.Single(l => l.StartsWith("ECPort=", StringComparison.Ordinal))[7..]);
             hash = lines.Single(l => l.StartsWith("ECPassword=", StringComparison.Ordinal))[11..];
+        }
+        // aMule only initializes/persists server.met when eD2k is enabled at startup.
+        // Its daemon otherwise bootstraps an empty list from the Internet and connects
+        // even with Autoconnect=0. Clear that bootstrap URL in our managed profile.
+        // wxFileConfig interprets backslashes as escapes: use forward slashes for paths.
+        string original = File.ReadAllText(config);
+        var settings = new Dictionary<string, string>
+        {
+            ["ConnectToED2K"] = "1", ["Autoconnect"] = "0", ["Reconnect"] = "0",
+            ["Ed2kServersUrl"] = "", ["Serverlist"] = "0", ["NewVersionCheck"] = "0",
+            ["IncomingDir"] = Path.Combine(ProfilePath, "Incoming").Replace('\\', '/'),
+            ["TempDir"] = Path.Combine(ProfilePath, "Temp").Replace('\\', '/')
+        };
+        var configLines = original.Replace("\r\n", "\n").Split('\n').ToList();
+        int section = configLines.IndexOf("[eMule]");
+        int end = configLines.FindIndex(section + 1, line => line.StartsWith('['));
+        if (end < 0) end = configLines.Count;
+        foreach (var setting in settings)
+        {
+            int index = configLines.FindIndex(section + 1, end - section - 1, line => line.StartsWith(setting.Key + "=", StringComparison.Ordinal));
+            if (index >= 0) configLines[index] = setting.Key + "=" + setting.Value;
+            else { configLines.Insert(end++, setting.Key + "=" + setting.Value); }
+        }
+        string updated = string.Join("\n", configLines);
+        if (original != updated)
+        {
+            if (!File.Exists(config + ".pre-servers.bak")) File.Copy(config, config + ".pre-servers.bak");
+            File.WriteAllText(config, updated, new UTF8Encoding(false));
         }
         var probe = new TcpListener(IPAddress.Loopback, Port);
         probe.Start(); probe.Stop(); // Refuse occupied ports before launching.

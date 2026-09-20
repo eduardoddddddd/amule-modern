@@ -6,7 +6,7 @@ using System.Text;
 
 namespace AmuleModern.Amule;
 
-public sealed class EcClient : IDisposable
+public sealed partial class EcClient : IDisposable
 {
     private readonly TcpClient socket = new();
     private readonly SemaphoreSlim gate = new(1, 1);

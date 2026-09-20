@@ -80,6 +80,50 @@ if (args.Contains("--integration"))
         Check((await engine.Client.GetDownloadsAsync()).Single().State != 7, "resume real download");
         await engine.Client.PauseAsync(hash, true);
         Check((await engine.Client.RequestAsync(new(0x0a, EcTag.Integer(4, 0)))).Operation == 0x0c, "real stats request");
+        await engine.Client.EnableEd2kAsync();
+        var prefs = await engine.Client.RequestAsync(new(0x3f, EcTag.Integer(0x1000, 4), EcTag.Integer(4, 2)));
+        var connectionPrefs = prefs.Find(0x1300)!;
+        Check(connectionPrefs.Find(0x130d) != null && connectionPrefs.Find(0x130e) == null && connectionPrefs.Find(0x130b) == null,
+            "enable eD2k without enabling Kad or autoconnect");
+        var testServer = await engine.Client.AddServerAsync("203.0.113.31", "4661", "Persistencia de servidor");
+        Check((await engine.Client.GetServersAsync()).Any(s => s.Endpoint == testServer.Endpoint && s.Name == testServer.Name), "add and list real saved server");
+        await engine.Client.AddServerAsync("203.0.113.31", "4661", "Duplicate");
+        Check((await engine.Client.GetServersAsync()).Count(s => s.Endpoint == testServer.Endpoint) == 1, "adding duplicate is idempotent");
+        bool invalidPort = false;
+        try { await engine.Client.AddServerAsync("127.0.0.1", "70000", "invalid"); } catch (ArgumentException) { invalidPort = true; }
+        Check(invalidPort, "reject out-of-range port without changing engine");
+        Check(!(await engine.Client.GetNetworkStateAsync()).Connected, "saved server is not connected automatically");
+
+        // Controlled eD2k handshake, not a public server or a file-transfer test.
+        // Only this disposable test profile permits LAN servers.
+        await engine.Client.RequestAsync(new(0x40, EcTag.Integer(4, 2), new EcTag(0x1c00, 1, [], EcTag.Integer(0x1c07, 0))));
+        // aMule rejects loopback even with LAN filtering disabled; bind this host's LAN address.
+        var localAddress = (await Dns.GetHostAddressesAsync(Dns.GetHostName())).First(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip) && (ip.GetAddressBytes()[0] == 10 || (ip.GetAddressBytes()[0] == 192 && ip.GetAddressBytes()[1] == 168) || (ip.GetAddressBytes()[0] == 172 && ip.GetAddressBytes()[1] is >= 16 and <= 31)));
+        var ed2kListener = new TcpListener(localAddress, 0); ed2kListener.Start();
+        int ed2kPort = ((IPEndPoint)ed2kListener.LocalEndpoint).Port;
+        using var handshakeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        try
+        {
+            var localServer = await engine.Client.AddServerAsync(localAddress.ToString(), ed2kPort.ToString(), "Local test server");
+            var accepted = ed2kListener.AcceptTcpClientAsync(handshakeTimeout.Token).AsTask();
+            await engine.Client.ConnectServerAsync(localServer);
+            using var serverPeer = await accepted;
+            var peerStream = serverPeer.GetStream();
+            byte[] ed2kHeader = new byte[5]; await peerStream.ReadExactlyAsync(ed2kHeader, handshakeTimeout.Token);
+            uint loginLength = BinaryPrimitives.ReadUInt32LittleEndian(ed2kHeader.AsSpan(1));
+            Check(loginLength is > 0 and < 65536 && ed2kHeader[0] == 0xe3, "engine opens real eD2k TCP session");
+            byte[] login = new byte[loginLength]; await peerStream.ReadExactlyAsync(login, handshakeTimeout.Token);
+            Check(login[0] == 1, "eD2k login packet received by controlled server");
+            var beforeId = await engine.Client.GetNetworkStateAsync();
+            Check(beforeId.Connecting && !beforeId.Connected, "TCP alone is not reported as connected eD2k");
+            await peerStream.WriteAsync(Convert.FromHexString("E3050000004001000012"), handshakeTimeout.Token);
+            NetworkState? connected = null;
+            for (int i = 0; i < 40; i++) { connected = await engine.Client.GetNetworkStateAsync(); if (connected.Connected) break; await Task.Delay(50); }
+            Check(connected is { Connected: true, ClientId: 0x12000001 } && connected.Server?.Port == ed2kPort, "confirmed eD2k connection and HighID decoded");
+            await engine.Client.DisconnectServerAsync();
+            Check(!(await engine.Client.GetNetworkStateAsync()).Connected, "disconnect established eD2k session");
+        }
+        finally { ed2kListener.Stop(); }
     }
     Check(true, "graceful shutdown without kill");
     await using (var restarted = new EngineSession())
@@ -87,7 +131,10 @@ if (args.Contains("--integration"))
         await restarted.StartAsync(root, profile);
         var persisted = (await restarted.Client.GetDownloadsAsync()).Single();
         Check(persisted.Hash == hash && persisted.State == 7, "queue and paused state survive restart");
+        Check((await restarted.Client.GetServersAsync()).Any(s => s.Address == "203.0.113.31" && s.Port == 4661), "saved server list survives restart");
+        Check(!(await restarted.Client.GetNetworkStateAsync()).Connected && !(await restarted.Client.GetNetworkStateAsync()).Connecting, "restart does not autoconnect");
+        Check(File.Exists(Path.Combine(restarted.ProfilePath, "Temp", "001.part.met")), "Windows temporary files use the intended profile directory");
     }
-    Console.WriteLine("NOTE: networking disabled. No P2P payload transfer tested yet.");
+    Console.WriteLine("NOTE: controlled same-host LAN eD2k handshake verified. No public server or file payload tested in this suite.");
 }
 Console.WriteLine($"RESULT: {passed} checks passed.");

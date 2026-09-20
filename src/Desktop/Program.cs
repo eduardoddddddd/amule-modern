@@ -6,6 +6,7 @@ internal static class Program
 {
     public static string? CapturePath { get; private set; }
     public static bool ExerciseUi { get; private set; }
+    public static bool ShowServers { get; private set; }
     public static bool CaptureFailed { get; set; }
     [STAThread]
     public static int Main(string[] args)
@@ -13,6 +14,7 @@ internal static class Program
         int capture = Array.IndexOf(args, "--capture");
         if (capture >= 0 && capture + 1 < args.Length) CapturePath = Path.GetFullPath(args[capture + 1]);
         ExerciseUi = CapturePath != null && args.Contains("--exercise-ui");
+        ShowServers = args.Contains("--servers");
         int exitCode = BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return CaptureFailed ? 1 : exitCode;
     }

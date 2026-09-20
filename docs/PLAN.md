@@ -206,3 +206,5 @@ Crear repositorio y registrar este plan; comprobar herramientas disponibles sin 
 Este documento contiene decisiones propuestas y verificaciones documentales realizadas el 19/09/2026. No se ha instalado ni ejecutado aMule como parte de la planificación.
 
 La consulta a TDKop `joplin_status` devolvió conexión rechazada por Web Clipper en `127.0.0.1:41184`. La copia a la libreta Codex queda pendiente; no se ha utilizado joplin-bridge ni se ha accedido a SQLite para esta escritura.
+
+Actualización 20/09/2026: implementación 0.2.0-dev en curso completada para Descargas y Servidores. El estado ejecutado y sus límites están en STATUS.md; el texto anterior conserva la planificación original.

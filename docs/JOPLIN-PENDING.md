@@ -1,5 +1,7 @@
-# Nota pendiente para la libreta Codex
+# Registro en Joplin completado
 
-Título: aMule Modern — repositorio y primer incremento funcional — 2026-09-19.
+La nota «aMule Modern — interfaz y servidores eD2k — 2026-09-20» se creó en la libreta Codex mediante TDKop y Web Clipper.
 
-Guardar el contenido de STATUS.md y enlazar PLAN.md cuando TDKop confirme que Web Clipper está disponible. En esta sesión la conexión a 127.0.0.1:41184 fue rechazada. No se creó nota ni se programó una automatización.
+ID: b34863d12bea450d8269209b232c4f3a
+
+Incluye estado, decisiones, correcciones del motor, validación y trabajo pendiente. Esta nota resuelve el registro pendiente del primer incremento; los documentos completos permanecen en el repositorio.

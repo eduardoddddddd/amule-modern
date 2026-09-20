@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AmuleModern.Desktop.ServersWindow"
+        Title="Servidores eD2k · aMule Modern" Width="970" Height="660" MinWidth="860" MinHeight="600" Background="#111B29" Foreground="#E6ECF5" FontFamily="Inter" WindowStartupLocation="CenterOwner">
+  <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="7"><TextBlock Text="Servidores" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Añade un servidor eD2k y elige a cuál conectarte." FontSize="13" Foreground="#8C9DB5"/></StackPanel>
+      <Border Grid.Column="1" Background="#1B2C3B" CornerRadius="16" Padding="14,9" VerticalAlignment="Top"><TextBlock x:Name="NetworkBadge" Text="Consultando…" Foreground="#80DBC6" FontSize="12"/></Border>
+    </Grid>
+    <Border Grid.Row="1" Margin="0,23,0,16" Padding="18" Background="#192637" CornerRadius="10">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,14,*,14,105">
+          <StackPanel Spacing="6"><TextBlock Text="Nombre (opcional)" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="NameInput" PlaceholderText="Mi servidor" MaxLength="120"/></StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6"><TextBlock Text="IP o dominio" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="AddressInput" PlaceholderText="Dirección del servidor" MaxLength="253"/></StackPanel>
+          <StackPanel Grid.Column="4" Spacing="6"><TextBlock Text="Puerto TCP" FontSize="12" Foreground="#A6B2C6"/><TextBox x:Name="PortInput" Text="4661" MaxLength="5"/></StackPanel>
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right"><Button x:Name="AddOnlyButton" Content="Añadir" Click="AddOnly" IsEnabled="False"/><Button x:Name="AddConnectButton" Classes="primary" Content="Añadir y conectar" Click="AddAndConnect" IsEnabled="False"/></StackPanel>
+      </StackPanel>
+    </Border>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,12"><TextBlock Text="SERVIDORES GUARDADOS" Foreground="#8C9DB5" LetterSpacing="1" FontSize="11" VerticalAlignment="Center"/><Button Grid.Column="1" x:Name="RefreshServersButton" Content="↻  Actualizar" Click="RefreshClicked" IsEnabled="False"/></Grid>
+    <Border Grid.Row="3" BorderBrush="#263448" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+      <Grid>
+        <DataGrid x:Name="ServerGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionChanged="SelectionChanged" RowHeight="44" GridLinesVisibility="None" Background="#131F2D" BorderThickness="0">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="NOMBRE" Binding="{Binding Name}" Width="*" MinWidth="160"/>
+            <DataGridTextColumn Header="DIRECCIÓN" Binding="{Binding Endpoint}" Width="190"/>
+            <DataGridTextColumn Header="USUARIOS" Binding="{Binding UsersText}" Width="115"/>
+            <DataGridTextColumn Header="ARCHIVOS" Binding="{Binding FilesText}" Width="115"/>
+            <DataGridTextColumn Header="PING" Binding="{Binding PingText}" Width="90"/>
+          </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock x:Name="EmptyServers" Text="Todavía no has añadido servidores.&#10;Introduce su dirección y puerto en el formulario." TextAlignment="Center" LineHeight="23" Foreground="#8C9DB5" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,14,0,14">
+      <StackPanel VerticalAlignment="Center" Spacing="4"><TextBlock x:Name="CurrentServer" Text="Sin servidor conectado" FontSize="12"/><TextBlock Text="La lista se guarda en el perfil de aMule." FontSize="11" Foreground="#8C9DB5"/></StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"><Button x:Name="DisconnectButton" Content="Desconectar" Click="Disconnect" IsEnabled="False"/><Button x:Name="ConnectButton" Classes="primary" Content="Conectar al seleccionado" Click="ConnectSelected" IsEnabled="False"/></StackPanel>
+    </Grid>
+    <Border Grid.Row="5" Background="#192637" CornerRadius="8" Padding="13"><TextBlock x:Name="ServerMessage" Text="Cargando servidores…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12"/></Border>
+  </Grid>
+</Window>

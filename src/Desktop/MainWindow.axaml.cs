@@ -37,28 +37,42 @@ public partial class MainWindow : Window
             await engine.StartAsync(repository, Program.CapturePath == null ? "desktop" : "capture", lifetime.Token);
             ready = true;
             EngineBadge.Text = $"●  aMule {engine.Client.ServerVersion}";
-            ConnectionStatus.Text = $"EC autenticado · 127.0.0.1:{engine.Port}   |   eD2k / Kad: desactivados";
+            ConnectionStatus.Text = "Motor autenticado · consultando las redes…";
             Message.Text = "Perfil aislado listo. Añadir, pausar y reanudar ya funcionan. Al cerrar esta versión, el motor se detiene ordenadamente.";
-            AddButton.IsEnabled = RefreshButton.IsEnabled = true;
+            AddButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
         finally { operations.Release(); }
         if (ready) { await RefreshAsync(); timer.Start(); }
         if (Program.CapturePath != null)
         {
+            ServersWindow? serversWindow = null;
             try
             {
                 if (!ready) throw new InvalidOperationException("La captura no pudo conectar al motor.");
-                if (Program.ExerciseUi) await ExerciseUiAsync();
+                if (Program.ShowServers)
+                {
+                    serversWindow = new ServersWindow(engine.Client);
+                    serversWindow.Show(this);
+                    if (Program.ExerciseUi) await serversWindow.ExerciseUiAsync();
+                }
+                else if (Program.ExerciseUi) await ExerciseUiAsync();
             }
             catch (Exception ex) { Program.CaptureFailed = true; Message.Text = "Prueba visual fallida: " + ex.Message; }
             await Task.Delay(1000);
-            using var bitmap = new RenderTargetBitmap(new PixelSize((int)Bounds.Width, (int)Bounds.Height), new Vector(96, 96));
-            bitmap.Render(this);
+            Window target = serversWindow ?? (Window)this;
+            using var bitmap = new RenderTargetBitmap(new PixelSize((int)target.Bounds.Width, (int)target.Bounds.Height), new Vector(96, 96));
+            bitmap.Render(target);
             Directory.CreateDirectory(Path.GetDirectoryName(Program.CapturePath)!);
             bitmap.Save(Program.CapturePath, PngBitmapEncoderOptions.Default);
+            if (serversWindow != null)
+            {
+                File.WriteAllText(Path.ChangeExtension(Program.CapturePath, ".validation.txt"), Program.CaptureFailed ? "FAIL: servers UI" : "PASS: servers UI validation, add, selection, duplicate, disconnected state. Real engine.");
+                serversWindow.Close();
+            }
             Close();
         }
+        else if (ready && Program.ShowServers) OpenServers(this, new RoutedEventArgs());
     }
     private async Task ExerciseUiAsync()
     {
@@ -103,6 +117,8 @@ public partial class MainWindow : Window
         QueueCount.Text = snapshot.Count.ToString();
         DownloadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x201)?.Number ?? 0) + "/s";
         UploadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x200)?.Number ?? 0) + "/s";
+        var network = NetworkState.FromTag(stats.Find(5) ?? throw new InvalidDataException("Falta estado de red."));
+        ConnectionStatus.Text = $"Motor local conectado   |   eD2k: {network.Ed2kText}   |   Kad: {network.KadText}";
         ApplyFilter();
     }
     private void ApplyFilter()
@@ -140,7 +156,7 @@ public partial class MainWindow : Window
     private async void AddLink(object? sender, RoutedEventArgs e)
     {
         string link = LinkInput.Text?.Trim() ?? "";
-        await ActAsync(async () => { await engine.Client.AddLinkAsync(link, lifetime.Token); LinkInput.Text = ""; }, "Enlace añadido a la cola del motor. La red P2P sigue desactivada en esta fase.");
+        await ActAsync(async () => { await engine.Client.AddLinkAsync(link, lifetime.Token); LinkInput.Text = ""; }, "Enlace añadido. Puedes gestionar la conexión desde Servidores.");
     }
     private void LinkKeyDown(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter) AddLink(sender, new RoutedEventArgs()); }
     private async void PauseSelected(object? sender, RoutedEventArgs e)
@@ -152,6 +168,12 @@ public partial class MainWindow : Window
         if (DownloadsGrid.SelectedItem is DownloadItem item) await ActAsync(async () => { await engine.Client.PauseAsync(item.Hash, false, lifetime.Token); }, "Descarga reanudada en la cola.");
     }
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await RefreshAsync();
+    private async void OpenServers(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || closing) return;
+        await new ServersWindow(engine.Client).ShowDialog(this);
+        await RefreshAsync();
+    }
     private void OpenDownloads(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(engine.ProfilePath, "Incoming"));
     private void OpenPlan(object? sender, RoutedEventArgs e) => OpenPath(Path.Combine(repository, "docs", "PLAN.md"));
     private void OpenPath(string path)
@@ -164,7 +186,7 @@ public partial class MainWindow : Window
         EngineBadge.Text = "●  Requiere atención";
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Cierra y vuelve a abrir para reintentar.";
-        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = RefreshButton.IsEnabled = false;
+        AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = RefreshButton.IsEnabled = ServersButton.IsEnabled = false;
     }
     private async void WindowClosing(object? sender, WindowClosingEventArgs e)
     {

@@ -14,6 +14,7 @@
         <StackPanel Grid.Row="1">
           <TextBlock Text="BIBLIOTECA" FontSize="10" LetterSpacing="1.8" Foreground="#63768F" Margin="12,0,0,12" />
           <Button Classes="nav selected" Content="↓    Descargas" />
+          <Button x:Name="ServersButton" Classes="nav" Content="⇄    Servidores" Click="OpenServers" IsEnabled="False" />
           <Button Classes="nav" Content="⌕    Buscar" IsEnabled="False" ToolTip.Tip="Pendiente: búsquedas eD2k / Kad" />
           <Button Classes="nav" Content="▤    Compartidos" IsEnabled="False" ToolTip.Tip="Pendiente de implementar" />
           <Border Height="1" Background="#243143" Margin="10,23" />
@@ -21,7 +22,7 @@
           <Button Classes="nav" Content="▧    Ver plan" Click="OpenPlan" />
         </StackPanel>
         <Border Grid.Row="3" Background="#142333" CornerRadius="10" Padding="14">
-          <StackPanel Spacing="7"><TextBlock Text="PRIMERA VERSIÓN" FontSize="9" LetterSpacing="1.4" Foreground="#80DBC6" /><TextBlock Text="Motor real, perfil aislado." FontSize="11" /><TextBlock Text="Conexión a la red P2P&#10;pendiente de integrar." FontSize="11" Foreground="#899DB7" LineHeight="18" /></StackPanel>
+          <StackPanel Spacing="7"><TextBlock Text="TU CONEXIÓN" FontSize="9" LetterSpacing="1.4" Foreground="#80DBC6" /><TextBlock Text="Servidores eD2k" FontSize="11" /><TextBlock Text="Añade y conecta desde&#10;la opción Servidores." FontSize="11" Foreground="#899DB7" LineHeight="18" /></StackPanel>
         </Border>
       </Grid>
     </Border>
@@ -59,14 +60,14 @@
           <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="13" IsHitTestVisible="False">
             <Border Width="58" Height="58" CornerRadius="18" Background="#1D3443" HorizontalAlignment="Center"><TextBlock Text="↓" FontSize="31" Foreground="#80DBC6" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
             <TextBlock x:Name="EmptyTitle" Text="Tu próxima descarga empieza aquí" FontSize="17" FontWeight="Medium" HorizontalAlignment="Center" />
-            <TextBlock Text="Añade un enlace para gestionar su cola.&#10;Esta versión todavía no conecta a eD2k / Kad." Foreground="#8497B0" FontSize="12" LineHeight="21" TextAlignment="Center" />
+            <TextBlock Text="Añade un enlace y conecta a un servidor&#10;desde la opción Servidores de la barra lateral." Foreground="#8497B0" FontSize="12" LineHeight="21" TextAlignment="Center" />
           </StackPanel>
         </Grid>
       </Border>
       <Border Grid.Row="5" Background="#192637" CornerRadius="8" Margin="0,14,0,0" Padding="14,11"><TextBlock x:Name="Message" Text="Preparando el perfil de desarrollo…" TextWrapping="Wrap" Foreground="#ABBAD0" FontSize="12" /></Border>
     </Grid>
     <Border Grid.Row="1" Grid.Column="1" Background="#0F1926" BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="20,0">
-      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center"><TextBlock x:Name="ConnectionStatus" Text="Motor local · esperando autenticación" FontSize="11" Foreground="#8295AE" /><TextBlock Grid.Column="1" Text="0.1.0-dev  ·  C# / Avalonia" FontSize="10" Foreground="#637892" /></Grid>
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center"><TextBlock x:Name="ConnectionStatus" Text="Motor local · esperando autenticación" FontSize="11" Foreground="#8295AE" /><TextBlock Grid.Column="1" Text="0.2.0-dev  ·  C# / Avalonia" FontSize="10" Foreground="#637892" /></Grid>
     </Border>
   </Grid>
 </Window>
