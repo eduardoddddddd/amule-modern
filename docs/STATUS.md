@@ -1,4 +1,10 @@
-# Estado al 20/09/2026 — 0.9.2-dev
+# Estado al 21/09/2026 — 0.9.2-dev
+
+## macOS arm64
+
+La misma aplicación Avalonia arranca en Apple Silicon con el `amuled` 3.0.1 del DMG oficial universal2 (hash fijado en `docs/engine-manifest.json`). `AmuleModern.app` usa el icono del proyecto y se puede anclar al Dock. El motor de esa copia no muestra el icono de aMule y no reemplaza una instalación ya existente. Smoke de integración en macOS 26.3: 91 comprobaciones PASS. Sin notarizar.
+
+## Estado al 20/09/2026
 
 Repositorio: C:\Users\Edu\source\amule-modern. C# / Avalonia 12.1.2, SDK local .NET 10.0.401 y motor oficial aMule 3.0.1 fijados.
 

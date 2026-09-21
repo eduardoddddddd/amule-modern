@@ -101,9 +101,10 @@ using (var http = new HttpClient(new ImportTransport(_ => { var response = new H
 }
 Check(BandwidthLimits.Normalize(80000) == 80000 && BandwidthLimits.Normalize(102400) == 102400 && BandwidthLimits.Normalize(65535) == 0, "high bandwidth limits are preserved and only exact legacy sentinel is unlimited");
 string bundle = Path.Combine(Path.GetTempPath(), "amule-modern-layout-" + Guid.NewGuid().ToString("N"));
-Directory.CreateDirectory(Path.Combine(bundle, "engine", "bin"));
+string bundledEngine = EngineSession.BundledEnginePath(bundle);
+Directory.CreateDirectory(Path.GetDirectoryName(bundledEngine)!);
 File.WriteAllText(Path.Combine(bundle, "engine-manifest.json"), "{}");
-File.WriteAllBytes(Path.Combine(bundle, "engine", "bin", "amuled.exe"), [0]);
+File.WriteAllBytes(bundledEngine, [0]);
 string largeList = Path.Combine(bundle, "large-list.txt");
 using (var file = File.Create(largeList)) file.SetLength(ServerListFile.MaxBytes + 1L);
 bool largeRejected = false;
@@ -116,7 +117,7 @@ using (var locked = new FileStream(largeList, FileMode.Open, FileAccess.ReadWrit
     Check(lockedRejected, "locked local list reports an acquisition error");
 }
 var bundled = EngineSession.Locate(Path.Combine(bundle, "engine", "bin"));
-Check(string.Equals(bundled.Root, bundle, StringComparison.OrdinalIgnoreCase) && bundled.EnginePath.EndsWith(Path.Combine("engine", "bin", "amuled.exe"), StringComparison.OrdinalIgnoreCase) && !bundled.IsRepository, "bundled layout finds engine next to the app");
+Check(string.Equals(bundled.Root, bundle, StringComparison.OrdinalIgnoreCase) && string.Equals(bundled.EnginePath, bundledEngine, StringComparison.OrdinalIgnoreCase) && !bundled.IsRepository, "bundled layout finds engine next to the app");
 var repoLayout = EngineSession.Locate(EngineSession.FindRepository());
 Check(repoLayout.IsRepository && File.Exists(repoLayout.EnginePath), "repository layout uses vendor amuled");
 Directory.Delete(bundle, true);

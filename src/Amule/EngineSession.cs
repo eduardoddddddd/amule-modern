@@ -32,12 +32,18 @@ public sealed class EngineSession : IAsyncDisposable
         for (var dir = new DirectoryInfo(Path.GetFullPath(startDirectory)); dir != null; dir = dir.Parent)
         {
             if (File.Exists(Path.Combine(dir.FullName, "docs", "engine-manifest.json")))
-                return new(dir.FullName, Path.Combine(dir.FullName, "vendor", "amule-3.0.1", "amule-portable-x64", "bin", "amuled.exe"));
+                return new(dir.FullName, RepositoryEnginePath(dir.FullName));
             if (File.Exists(Path.Combine(dir.FullName, "engine-manifest.json")))
-                return new(dir.FullName, Path.Combine(dir.FullName, "engine", "bin", "amuled.exe"));
+                return new(dir.FullName, BundledEnginePath(dir.FullName));
         }
-        throw new DirectoryNotFoundException("No se encontró el motor. Ejecuta scripts/Setup.ps1, el paquete portable o la instalación por usuario.");
+        throw new DirectoryNotFoundException("No se encontró el motor. Ejecuta scripts/Setup.ps1 o scripts/Setup.sh, el paquete portable o la instalación por usuario.");
     }
+    public static string RepositoryEnginePath(string root) => OperatingSystem.IsWindows()
+        ? Path.Combine(root, "vendor", "amule-3.0.1", "amule-portable-x64", "bin", "amuled.exe")
+        : Path.Combine(root, "vendor", "amule-3.0.1", "macos", "aMule.app", "Contents", "MacOS", "amuled");
+    public static string BundledEnginePath(string root) => OperatingSystem.IsWindows()
+        ? Path.Combine(root, "engine", "bin", "amuled.exe")
+        : Path.Combine(root, "engine", "aMule.app", "Contents", "MacOS", "amuled");
     public async Task StartAsync(string repository, string profileName, CancellationToken token = default)
     {
         token.ThrowIfCancellationRequested();
@@ -57,6 +63,7 @@ public sealed class EngineSession : IAsyncDisposable
             acl.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
             new DirectoryInfo(ProfilePath).SetAccessControl(acl);
         }
+        else File.SetUnixFileMode(ProfilePath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         lease = new FileStream(Path.Combine(ProfilePath, "frontend.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         string config = Path.Combine(ProfilePath, "amule.conf");
         string hash;
@@ -105,8 +112,10 @@ public sealed class EngineSession : IAsyncDisposable
         probe.Start(); probe.Stop();
         string engine = layout.EnginePath;
         if (!File.Exists(engine)) throw new FileNotFoundException(layout.IsRepository
-            ? "Ejecuta scripts/Setup.ps1 para obtener el motor."
-            : "Falta amuled.exe junto a la aplicación (carpeta engine/bin).");
+            ? (OperatingSystem.IsWindows() ? "Ejecuta scripts/Setup.ps1 para obtener el motor." : "Ejecuta scripts/Setup.sh para obtener el motor.")
+            : (OperatingSystem.IsWindows() ? "Falta amuled.exe junto a la aplicación (carpeta engine/bin)." : "Falta amuled junto a la aplicación (engine/aMule.app)."));
+        if (!OperatingSystem.IsWindows() && File.Exists(config))
+            File.SetUnixFileMode(config, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         var start = new ProcessStartInfo(engine) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(engine)!, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("-c"); start.ArgumentList.Add(ProfilePath);
         start.ArgumentList.Add("-o");

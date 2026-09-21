@@ -2,6 +2,7 @@
 .local/
 vendor/
 artifacts/
+AmuleModern.app/
 **/bin/
 **/obj/
 .vs/

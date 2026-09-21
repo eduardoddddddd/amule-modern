@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType Condition="$([MSBuild]::IsOSPlatform('Windows'))">WinExe</OutputType>
+    <OutputType Condition="!$([MSBuild]::IsOSPlatform('Windows'))">Exe</OutputType>
     <AssemblyName>AmuleModern</AssemblyName>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets/amule-modern.ico</ApplicationIcon>
+    <RuntimeIdentifiers>win-x64;osx-arm64</RuntimeIdentifiers>
+    <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="$([MSBuild]::IsOSPlatform('Windows'))">Assets/amule-modern.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
