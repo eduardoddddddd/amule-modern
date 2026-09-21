@@ -70,6 +70,8 @@ El plan completo está en [docs/PLAN.md](docs/PLAN.md). El estado ejecutado, en 
 
 ## Arrancar
 
+### Windows
+
 Doble clic en `Iniciar.cmd`. Para preparar otro checkout desde PowerShell:
 
 ```powershell
@@ -101,7 +103,7 @@ También vale el doble clic en `Iniciar.command`. `Start.sh` abre `AmuleModern.a
 
 El `.app` y el DMG no van en Git. Se generan en local. Comprobado en macOS 26.3 sobre Apple Silicon: la ventana abre, EC autentica y `./scripts/Build.sh --test` deja 91 comprobaciones en verde, incluido `amuled` real. No está notarizado. La primera ejecución puede pedir permiso de red para el motor.
 
-La X oculta la ventana en la bandeja; las transferencias continúan. «Salir y detener» cierra el motor por EC. Una segunda ventana avisa a la ya abierta y puede entregar un enlace `ed2k://`. No se adjunta a procesos ajenos. aMule para Windows tampoco permite dos `amuled` a la vez, aunque los perfiles sean distintos: cierra la app antes de ejecutar pruebas.
+En los dos sistemas, la X oculta la ventana y las transferencias continúan. «Salir y detener» cierra el motor por EC. Una segunda ventana avisa a la ya abierta y puede entregar un enlace `ed2k://`. No se adjunta a procesos ajenos. No lances dos `amuled` a la vez.
 
 ## Datos
 
