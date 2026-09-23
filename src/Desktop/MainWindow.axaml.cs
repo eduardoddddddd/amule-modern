@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim operations = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool ready, allowClose, quitting, startupAttempted, themeReady;
+    private bool ready, allowClose, quitting, startupAttempted, themeReady, densityReady;
     private string repository = "";
     private string currentPage = "downloads";
     private TrayIcon? tray;
@@ -33,7 +33,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         DownloadsGrid.ItemsSource = rows;
         SelectThemeItem(UiSettings.LoadTheme());
-        themeReady = true;
+        SelectDensityItem(UiSettings.LoadDensity());
+        themeReady = densityReady = true;
+        GridColumns.Attach(DownloadsGrid, "downloads", ["name", "size", "progress", "state", "speed", "sources"], ColumnsButton);
         Opened += WindowOpened;
         Closing += WindowClosing;
         timer.Tick += async (_, _) => await RefreshAsync();
@@ -51,6 +53,25 @@ public partial class MainWindow : Window
             }
         }
         ThemeInput.SelectedIndex = 0;
+    }
+
+    private void SelectDensityItem(string density)
+    {
+        for (int i = 0; i < DensityInput.Items.Count; i++)
+        {
+            if (DensityInput.Items[i] is ComboBoxItem item && (item.Tag as string) == density)
+            {
+                DensityInput.SelectedIndex = i;
+                return;
+            }
+        }
+        DensityInput.SelectedIndex = 0;
+    }
+
+    private void DensityChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!densityReady || DensityInput.SelectedItem is not ComboBoxItem item || item.Tag is not string density) return;
+        GridColumns.SetDensity(density);
     }
 
     private void ThemeChanged(object? sender, SelectionChangedEventArgs e)

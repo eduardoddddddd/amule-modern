@@ -18,7 +18,10 @@ public partial class ServersWindow : UserControl
     private string? requestedEndpoint;
     public ServersWindow()
     {
-        InitializeComponent(); ServerGrid.ItemsSource = servers; UpdateButtons();
+        InitializeComponent();
+        ServerGrid.ItemsSource = servers;
+        GridColumns.Attach(ServerGrid, "servers", ["name", "address", "users", "files", "ping"], ColumnsButton);
+        UpdateButtons();
     }
     public ServersWindow(EcClient client) : this()
     {

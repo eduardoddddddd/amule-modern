@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Desktop/ColumnLayoutRules.cs" Link="ColumnLayoutRules.cs" />
+    <Compile Include="../../src/Desktop/UiSettings.cs" Link="UiSettings.cs" />
+  </ItemGroup>
+</Project>

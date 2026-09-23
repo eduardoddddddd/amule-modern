@@ -144,6 +144,9 @@
       <Setter Property="GridLinesVisibility" Value="None"/>
       <Setter Property="RowHeight" Value="44"/>
     </Style>
+    <Style Selector="DataGrid.compact">
+      <Setter Property="RowHeight" Value="36"/>
+    </Style>
     <Style Selector="DataGridColumnHeader">
       <Setter Property="Background" Value="{DynamicResource App.Header}"/>
       <Setter Property="Foreground" Value="{DynamicResource App.TextMuted}"/>

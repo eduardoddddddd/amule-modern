@@ -9,6 +9,7 @@
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="GridUi" />
     <AvaloniaResource Include="Assets\**" />
     <ProjectReference Include="../Amule/Amule.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.2" />

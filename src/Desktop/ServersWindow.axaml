@@ -53,12 +53,16 @@
     <Grid Grid.Row="3" RowDefinitions="Auto,*">
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
         <TextBlock Text="SERVIDORES GUARDADOS" Classes="section" VerticalAlignment="Center"/>
-        <Button Grid.Column="1" x:Name="RefreshServersButton" Content="↻  Actualizar" Click="RefreshClicked" IsEnabled="False"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button x:Name="ColumnsButton" Content="Columnas" ToolTip.Tip="Elige qué columnas se ven. El ancho y el orden también se recuerdan."/>
+          <Button x:Name="RefreshServersButton" Content="↻  Actualizar" Click="RefreshClicked" IsEnabled="False"/>
+        </StackPanel>
       </Grid>
       <Border Grid.Row="1" Classes="card" ClipToBounds="True">
         <Grid>
           <DataGrid x:Name="ServerGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                    SelectionChanged="SelectionChanged" HeadersVisibility="Column">
+                    SelectionChanged="SelectionChanged" HeadersVisibility="Column"
+                    CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True">
             <DataGrid.Columns>
               <DataGridTextColumn Header="NOMBRE" Binding="{Binding Name}" Width="*"/>
               <DataGridTextColumn Header="DIRECCIÓN" Binding="{Binding Endpoint}" Width="180"/>

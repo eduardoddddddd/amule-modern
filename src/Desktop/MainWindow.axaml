@@ -47,6 +47,12 @@
                 <ComboBoxItem Content="Claro" Tag="Light"/>
                 <ComboBoxItem Content="Sistema" Tag="System"/>
               </ComboBox>
+              <TextBlock Text="FILAS" Classes="section" Margin="0,8,0,0"/>
+              <ComboBox x:Name="DensityInput" HorizontalAlignment="Stretch" SelectionChanged="DensityChanged"
+                        ToolTip.Tip="La compacta usa filas de 36 px. Se recuerda en este equipo.">
+                <ComboBoxItem Content="Cómoda" Tag="Comfortable"/>
+                <ComboBoxItem Content="Compacta" Tag="Compact"/>
+              </ComboBox>
             </StackPanel>
           </Border>
           <Border Classes="panel" Padding="12">
@@ -107,6 +113,7 @@
                     ToolTip.Tip="Cancela descargas incompletas y borra sus temporales" IsEnabled="False"/>
             <Button x:Name="ClearButton" Content="Quitar de la lista" Click="ClearCompletedSelected"
                     ToolTip.Tip="Quita completados de la cola. Conserva el archivo en Incoming." IsEnabled="False"/>
+            <Button x:Name="ColumnsButton" Content="Columnas" ToolTip.Tip="Elige qué columnas se ven. El ancho y el orden también se recuerdan."/>
             <Button x:Name="RefreshButton" Content="↻" Click="RefreshClicked" ToolTip.Tip="Actualizar" IsEnabled="False"/>
           </StackPanel>
         </Grid>

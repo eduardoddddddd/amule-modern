@@ -25,6 +25,7 @@ Interfaz de escritorio en C# / Avalonia, con aMule 3.0.1 como proceso independie
 - **Buscar:** una búsqueda activa en el servidor actual, global eD2k o Kad; cada búsqueda se guarda en una pestaña para volver a ella. Resultados con fuentes, filtro, selección múltiple y descarga a la cola.
 - **Ajustes:** Incoming, tmp, límites de bajada/subida (KiB/s, 0 = ilimitado) y Kad. Por defecto la biblioteca está en Descargas (`amule-modern/incoming` y `tmp`): `%USERPROFILE%\Downloads` en Windows y `~/Downloads` en macOS. Activar Kad no abre el cortafuegos. Si la subida es muy baja, aMule puede recortar la bajada.
 - **Compartidos:** lista lo que el motor ofrece. Incoming se comparte solo; puedes añadir o quitar carpetas extra.
+- **Tablas:** en Descargas, Buscar, Servidores y Compartidos puedes redimensionar y reordenar columnas. El botón Columnas muestra u oculta el resto; la primera columna se queda. Ancho, orden y visibilidad se recuerdan en `ui.json`, junto al tema. En la barra lateral, Filas elige cómoda (44 px) o compacta (36 px) para todas las tablas.
 
 eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y conectar a mano. Kad empieza desactivado.
 
@@ -49,7 +50,6 @@ Esto es **0.9.2-dev**: sirve para el uso diario (buscar, descargar, servidores, 
 
 - Panel de detalle de cada descarga (ruta, hash, fuentes).
 - Asociación opcional y reversible de `ed2k://`.
-- Guardar columnas (ancho, orden, visibilidad) y densidad de filas.
 - Cierre siempre ordenado, de modo que la lista de servidores y la cola no dependan de no matar el proceso.
 - Sesión larga (8–24 h) y suspensión/reanudación de Windows sin corromper la cola.
 

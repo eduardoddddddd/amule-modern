@@ -11,6 +11,10 @@ try {
     & $dotnetExe build AmuleModern.slnx -c Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Falló la compilación.' }
     if ($Test) {
+        & $dotnetExe run --project tests/Layout -c Release --no-build
+        if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de columnas.' }
+        & $dotnetExe run --project tests/GridUi -c Release --no-build
+        if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba visual de columnas.' }
         & $dotnetExe run --project tests/Smoke -c Release --no-build -- --integration
         if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas.' }
     }
