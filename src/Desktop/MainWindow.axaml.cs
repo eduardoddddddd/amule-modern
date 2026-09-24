@@ -5,6 +5,7 @@ using AmuleModern.Amule;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -19,8 +20,10 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim operations = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private bool ready, allowClose, quitting, startupAttempted, themeReady;
+    private bool ready, allowClose, quitting, startupAttempted, themeReady, densityReady;
     private string repository = "";
+    private string? detailFolder;
+    private string? detailLink;
     private string currentPage = "downloads";
     private TrayIcon? tray;
     private SearchWindow? searchPage;
@@ -33,7 +36,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         DownloadsGrid.ItemsSource = rows;
         SelectThemeItem(UiSettings.LoadTheme());
-        themeReady = true;
+        SelectDensityItem(UiSettings.LoadDensity());
+        themeReady = densityReady = true;
+        GridColumns.Attach(DownloadsGrid, "downloads", ["name", "size", "progress", "state", "speed", "sources"], ColumnsButton);
         Opened += WindowOpened;
         Closing += WindowClosing;
         timer.Tick += async (_, _) => await RefreshAsync();
@@ -51,6 +56,25 @@ public partial class MainWindow : Window
             }
         }
         ThemeInput.SelectedIndex = 0;
+    }
+
+    private void SelectDensityItem(string density)
+    {
+        for (int i = 0; i < DensityInput.Items.Count; i++)
+        {
+            if (DensityInput.Items[i] is ComboBoxItem item && (item.Tag as string) == density)
+            {
+                DensityInput.SelectedIndex = i;
+                return;
+            }
+        }
+        DensityInput.SelectedIndex = 0;
+    }
+
+    private void DensityChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!densityReady || DensityInput.SelectedItem is not ComboBoxItem item || item.Tag is not string density) return;
+        GridColumns.SetDensity(density);
     }
 
     private void ThemeChanged(object? sender, SelectionChangedEventArgs e)
@@ -240,6 +264,16 @@ public partial class MainWindow : Window
         await operations.WaitAsync(); operations.Release();
         var first = rows.SingleOrDefault(r => r.Hash == "A448017AAF21D8525FC10AE87AA6729D") ?? throw new InvalidOperationException("El botón Añadir no actualizó la tabla.");
         DownloadsGrid.SelectedItem = first;
+        string hashLine = DetailHash.Text ?? "";
+        string linkLine = DetailLink.Text ?? "";
+        string pathLine = DetailPath.Text ?? "";
+        string factsLine = DetailFacts.Text ?? "";
+        if (!hashLine.Contains(first.Hash, StringComparison.Ordinal)
+            || !linkLine.Contains(first.Hash, StringComparison.Ordinal)
+            || !pathLine.EndsWith(".part", StringComparison.Ordinal)
+            || factsLine.Length == 0
+            || !factsLine.Contains("Transfiriendo", StringComparison.Ordinal))
+            throw new InvalidOperationException("El panel de detalle no muestra hash, enlace, parcial o fuentes.");
         PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
         if (rows[0].State != 7) throw new InvalidOperationException("El botón Pausar no pausó la cola real.");
@@ -334,6 +368,64 @@ public partial class MainWindow : Window
         ResumeButton.IsEnabled = active && selected.Any(d => d.CanCancel && d.State == 7);
         CancelButton.IsEnabled = active && selected.Any(d => d.CanCancel);
         ClearButton.IsEnabled = active && selected.Any(d => d.IsComplete && d.EcId != 0);
+        ShowDetail(DownloadsGrid.SelectedItem as DownloadItem);
+    }
+
+    private void ShowDetail(DownloadItem? item)
+    {
+        detailFolder = null;
+        detailLink = null;
+        bool show = item != null;
+        DetailHint.IsVisible = !show;
+        DetailHash.IsVisible = DetailPath.IsVisible = DetailMeta.IsVisible = DetailLink.IsVisible = DetailFacts.IsVisible = show;
+        CopyHashButton.IsEnabled = CopyLinkButton.IsEnabled = OpenFolderButton.IsEnabled = false;
+        if (item == null) return;
+        var place = DownloadLocation.Resolve(engine.IncomingPath, engine.TempPath, item);
+        detailFolder = place.Folder;
+        detailLink = item.Detail.Link is { Length: > 0 } engineLink && engineLink.StartsWith("ed2k://", StringComparison.OrdinalIgnoreCase)
+            ? engineLink
+            : item.Name.Contains('|') ? null : $"ed2k://|file|{item.Name}|{item.Size}|{item.Hash}|/";
+        DetailHash.Text = "Hash  " + item.Hash;
+        DetailPath.Text = place.DataFile ?? "Ruta no disponible";
+        DetailMeta.Text = item.IsComplete ? "Archivo en Incoming" : place.MetaFile is { } met ? "Metadatos  " + met : "Metadatos no disponibles";
+        DetailLink.Text = detailLink ?? "Enlace no disponible";
+        string comment = item.Detail.Comment switch { null => "No disponible", "" => "Sin comentario", var text => text };
+        DetailFacts.Text = item.Detail.PriorityText
+            + "  ·  " + item.Detail.SourcesText
+            + "  ·  visto completo " + DownloadDetail.UnixText(item.Detail.LastSeenUnix)
+            + "  ·  última recepción " + DownloadDetail.UnixText(item.Detail.LastRecvUnix)
+            + "  ·  activo " + DownloadDetail.DurationText(item.Detail.ActiveSeconds)
+            + "  ·  partes " + DownloadDetail.Num(item.Detail.AvailableParts)
+            + "  ·  AICH " + (item.Detail.Aich ?? "No disponible")
+            + "  ·  comentario " + comment;
+        CopyHashButton.IsEnabled = true;
+        CopyLinkButton.IsEnabled = detailLink != null;
+        OpenFolderButton.IsEnabled = detailFolder != null && Directory.Exists(detailFolder);
+    }
+
+    private async void CopyHash(object? sender, RoutedEventArgs e)
+    {
+        if (DownloadsGrid.SelectedItem is not DownloadItem item) return;
+        await CopyTextAsync(item.Hash, "Hash copiado.");
+    }
+
+    private async void CopyLink(object? sender, RoutedEventArgs e)
+    {
+        if (detailLink == null) return;
+        await CopyTextAsync(detailLink, "Enlace copiado.");
+    }
+
+    private async Task CopyTextAsync(string text, string done)
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null) { Message.Text = "No hay portapapeles en esta sesión."; return; }
+        await clipboard.SetTextAsync(text);
+        Message.Text = done;
+    }
+
+    private void OpenDetailFolder(object? sender, RoutedEventArgs e)
+    {
+        if (detailFolder != null) OpenPath(detailFolder);
     }
 
     private async Task ActAsync(Func<Task> action, string success)
@@ -414,7 +506,8 @@ public partial class MainWindow : Window
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Si el motor sigue, recarga; «Salir y detener» cierra el proceso.";
         AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled =
-            RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled = NavSettings.IsEnabled = NavShared.IsEnabled = false;
+            RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled = NavSettings.IsEnabled = NavShared.IsEnabled =
+            CopyHashButton.IsEnabled = CopyLinkButton.IsEnabled = OpenFolderButton.IsEnabled = false;
     }
 
     private void AttachTray()

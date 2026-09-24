@@ -41,7 +41,12 @@ public partial class SearchWindow : UserControl
         }
     }
 
-    public SearchWindow() { InitializeComponent(); ResultsGrid.ItemsSource = rows; }
+    public SearchWindow()
+    {
+        InitializeComponent();
+        ResultsGrid.ItemsSource = rows;
+        GridColumns.Attach(ResultsGrid, "search", ["name", "size", "sources", "complete"], ColumnsButton);
+    }
     public SearchWindow(EcClient client) : this()
     {
         this.client = client;

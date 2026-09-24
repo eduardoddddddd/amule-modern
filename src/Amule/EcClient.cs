@@ -71,6 +71,7 @@ public sealed class EcCommandException(string message) : Exception(message);
 
 public sealed record DownloadItem(string Hash, string Name, ulong Size, ulong Done, ulong Speed, ulong Sources, byte State, ulong EcId)
 {
+    public DownloadDetail Detail { get; init; } = DownloadDetail.None;
     public double Progress => Size == 0 ? 0 : Math.Clamp(100d * Done / Size, 0, 100);
     public string ProgressText => $"{Progress:0.0} %";
     public string SizeText => FormatBytes(Size);
@@ -86,6 +87,9 @@ public sealed record DownloadItem(string Hash, string Name, ulong Size, ulong Do
         if (hash is null || hash.Data.Length != 16) throw new InvalidDataException("Descarga sin hash válido.");
         ulong N(ushort name) => tag.Find(name)?.Number ?? 0;
         ulong ecId = tag.Type is 2 or 3 or 4 or 5 ? tag.Number : 0;
-        return new(Convert.ToHexString(hash.Data), tag.Find(0x301)?.String ?? "Sin nombre", N(0x303), N(0x306), N(0x307), N(0x30a), (byte)N(0x308), ecId);
+        return new(Convert.ToHexString(hash.Data), tag.Find(0x301)?.String ?? "Sin nombre", N(0x303), N(0x306), N(0x307), N(0x30a), (byte)N(0x308), ecId)
+        {
+            Detail = DownloadDetail.FromTag(tag)
+        };
     }
 }

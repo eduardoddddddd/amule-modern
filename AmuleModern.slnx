@@ -5,5 +5,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Smoke/Smoke.csproj" />
+    <Project Path="tests/Layout/Layout.csproj" />
+    <Project Path="tests/GridUi/GridUi.csproj" />
   </Folder>
 </Solution>

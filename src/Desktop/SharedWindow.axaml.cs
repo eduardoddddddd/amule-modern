@@ -19,7 +19,12 @@ public partial class SharedWindow : UserControl
     private bool busy, available, closed;
     private string[] extraFolders = [];
     private readonly ObservableCollection<string> folderOptions = [];
-    public SharedWindow() { InitializeComponent(); SharedGrid.ItemsSource = rows; }
+    public SharedWindow()
+    {
+        InitializeComponent();
+        SharedGrid.ItemsSource = rows;
+        GridColumns.Attach(SharedGrid, "shared", ["name", "size", "folder", "requests"], ColumnsButton);
+    }
     public SharedWindow(EngineSession engine) : this()
     {
         this.engine = engine;

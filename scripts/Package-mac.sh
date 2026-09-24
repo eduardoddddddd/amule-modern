@@ -61,6 +61,17 @@ cat > "$app/Contents/Info.plist" <<'EOF'
   <true/>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>ed2k URL</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>ed2k</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>
 EOF

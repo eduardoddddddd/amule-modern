@@ -41,6 +41,16 @@
         </Border>
         <Border Classes="panel" Padding="16">
           <StackPanel Spacing="10">
+            <TextBlock Text="ENLACES ED2K" Classes="section"/>
+            <TextBlock x:Name="Ed2kStatus" Text="La asociación es opcional." FontSize="12" Classes="muted" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="Ed2kEnableButton" Content="Abrir enlaces ed2k://" Click="EnableEd2k"/>
+              <Button x:Name="Ed2kDisableButton" Content="Quitar asociación" Click="DisableEd2k"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border Classes="panel" Padding="16">
+          <StackPanel Spacing="10">
             <TextBlock Text="RED KAD" Classes="section"/>
             <TextBlock x:Name="KadStatus" Text="Kad está desactivado. No se abre el cortafuegos." FontSize="12" Classes="muted" TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" Spacing="8">

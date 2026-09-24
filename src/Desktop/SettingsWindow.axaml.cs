@@ -26,6 +26,7 @@ public partial class SettingsWindow : UserControl
             TempInput.Text = engine.TempPath;
             await RefreshLimitsAsync();
             await RefreshKadAsync();
+            RefreshEd2k();
         };
     }
     private async Task RefreshLimitsAsync()
@@ -83,6 +84,63 @@ public partial class SettingsWindow : UserControl
         }
         catch (Exception ex) { KadStatus.Text = "No se pudo leer Kad: " + ex.Message; }
     }
+    private void RefreshEd2k()
+    {
+        if (!Ed2kProtocol.Supported)
+        {
+            Ed2kStatus.Text = "En este sistema no se asocia el esquema ed2k://.";
+            Ed2kEnableButton.IsEnabled = Ed2kDisableButton.IsEnabled = false;
+            return;
+        }
+        string? exe = Ed2kProtocol.CurrentExecutable();
+        if (exe is null)
+        {
+            Ed2kStatus.Text = "Asocia el esquema desde la aplicación instalada, no desde una ejecución de desarrollo.";
+            Ed2kEnableButton.IsEnabled = Ed2kDisableButton.IsEnabled = false;
+            return;
+        }
+        var (owned, previous) = UiSettings.LoadEd2k();
+        var current = Ed2kProtocol.Read();
+        if (Ed2kAssociation.Owns(current, exe, owned) && !string.Equals(current.Command, Ed2kAssociation.HandlerFor(exe), StringComparison.Ordinal))
+        {
+            var refresh = Ed2kAssociation.Enable(current, exe, previous, owned);
+            Ed2kProtocol.Apply(refresh, exe);
+            current = Ed2kProtocol.Read();
+            (owned, previous) = UiSettings.LoadEd2k();
+        }
+        bool ours = Ed2kAssociation.Owns(current, exe, owned);
+        Ed2kEnableButton.IsEnabled = !ours;
+        Ed2kDisableButton.IsEnabled = ours || previous != null;
+        string? warning = OperatingSystem.IsWindows() ? Ed2kProtocol.ForeignDefaultWarning() : null;
+        Ed2kStatus.Text = ours
+            ? "aMule Modern abre los enlaces ed2k://. Quitar la asociación devuelve el programa anterior, si había uno."
+            : "Ningún cambio automático. Al activarlo se recuerda el programa que hubiera y se puede restaurar."
+            + (warning is null ? "" : " " + warning);
+    }
+
+    private void EnableEd2k(object? sender, RoutedEventArgs e) => ChangeEd2k(true);
+    private void DisableEd2k(object? sender, RoutedEventArgs e) => ChangeEd2k(false);
+
+    private void ChangeEd2k(bool enable)
+    {
+        if (busy) return;
+        string? exe = Ed2kProtocol.CurrentExecutable();
+        if (exe is null) { Ed2kStatus.Text = "No hay una aplicación instalada que registrar."; return; }
+        busy = true;
+        try
+        {
+            var (owned, previous) = UiSettings.LoadEd2k();
+            var current = Ed2kProtocol.Read();
+            var result = enable
+                ? Ed2kAssociation.Enable(current, exe, previous, owned)
+                : Ed2kAssociation.Disable(current, exe, previous, owned);
+            Ed2kProtocol.Apply(result, exe);
+            StatusMessage.Text = result.Message;
+        }
+        catch (Exception ex) { StatusMessage.Text = ex.Message; }
+        finally { busy = false; RefreshEd2k(); }
+    }
+
     private async void EnableKad(object? sender, RoutedEventArgs e) => await SetKadAsync(true);
     private async void DisableKad(object? sender, RoutedEventArgs e) => await SetKadAsync(false);
     private async Task SetKadAsync(bool enabled)
@@ -154,6 +212,8 @@ public partial class SettingsWindow : UserControl
         if (KadStatus == null || KadEnableButton == null) throw new InvalidOperationException("Ajustes no muestra el control de Kad.");
         if (DownloadLimitInput == null || UploadLimitInput == null || ApplyLimitsButton == null)
             throw new InvalidOperationException("Ajustes no muestra los límites de ancho de banda.");
-        StatusMessage.Text = "Prueba de interfaz: rutas, límites y control Kad visibles.";
+        if (Ed2kEnableButton == null || Ed2kDisableButton == null || string.IsNullOrWhiteSpace(Ed2kStatus.Text))
+            throw new InvalidOperationException("Ajustes no muestra la asociación ed2k.");
+        StatusMessage.Text = "Prueba de interfaz: rutas, límites, Kad y asociación ed2k visibles.";
     }
 }
