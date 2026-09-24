@@ -82,7 +82,7 @@ public sealed partial class EcClient
             try { ip = (await Dns.GetHostAddressesAsync(address, AddressFamily.InterNetwork, deadline.Token)).FirstOrDefault(); }
             catch (Exception ex) when (ex is SocketException or OperationCanceledException) { throw new ArgumentException("No se pudo resolver el dominio a IPv4.", ex); }
         }
-        if (ip is null || ip.AddressFamily != AddressFamily.InterNetwork || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.Broadcast) || ip.GetAddressBytes()[0] >= 224)
+        if (ip is null || ip.AddressFamily != AddressFamily.InterNetwork || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.Broadcast) || ip.GetAddressBytes()[0] is 0 or >= 224)
             throw new ArgumentException("La dirección IPv4 del servidor no es válida.");
         // Prefer an empty EC name over copying the IP: aMule keeps a non-empty label and
         // will not replace it with the name announced when the TCP session connects.

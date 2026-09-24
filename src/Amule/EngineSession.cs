@@ -66,6 +66,11 @@ public sealed class EngineSession : IAsyncDisposable
         }
         else File.SetUnixFileMode(ProfilePath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         lease = new FileStream(Path.Combine(ProfilePath, "frontend.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        try { await LaunchAsync(layout, profileName, token); }
+        catch (Exception) { AbortStart(); throw; }
+    }
+    private async Task LaunchAsync(AppLayout layout, string profileName, CancellationToken token)
+    {
         string config = Path.Combine(ProfilePath, "amule.conf");
         string hash;
         bool isolated = UserFolders.IsIsolatedProfile(profileName);
@@ -109,8 +114,15 @@ public sealed class EngineSession : IAsyncDisposable
             ["TempDir"] = UserFolders.ForConfig(TempPath)
         };
         WriteSettings(config, original, settings);
-        var probe = new TcpListener(IPAddress.Loopback, Port);
-        probe.Start(); probe.Stop();
+        try
+        {
+            var probe = new TcpListener(IPAddress.Loopback, Port);
+            probe.Start(); probe.Stop();
+        }
+        catch (SocketException ex)
+        {
+            throw new IOException($"El puerto EC {Port} ya está en uso. Puede que siga abierto otro amuled de este perfil; ciérralo y vuelve a abrir la aplicación.", ex);
+        }
         string engine = layout.EnginePath;
         if (!File.Exists(engine)) throw new FileNotFoundException(layout.IsRepository
             ? (OperatingSystem.IsWindows() ? "Ejecuta scripts/Setup.ps1 para obtener el motor." : "Ejecuta scripts/Setup.sh para obtener el motor.")
@@ -130,8 +142,33 @@ public sealed class EngineSession : IAsyncDisposable
             Client.Dispose(); Client = new EcClient();
             try { await Client.ConnectAsync(Port, hash, token); await Client.EnableEd2kAsync(token); await RestoreSnapshotsAsync(token); StartSnapshotTimer(); InstallShutdownHook(); return; }
             catch (SocketException) { await Task.Delay(200, token); }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested) { await Task.Delay(200, token); }
         }
         throw new TimeoutException("amuled no abrió la conexión EC a tiempo.");
+    }
+    private void AbortStart()
+    {
+        snapshotTimer?.Dispose();
+        snapshotTimer = null;
+        Client.Dispose();
+        KillEngine();
+        lease?.Dispose(); lease = null;
+    }
+    // Last resort only: a forced kill can lose progress amuled has not yet flushed to .part.met.
+    private void KillEngine()
+    {
+        if (process is null) return;
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);
+            }
+        }
+        catch (Exception) { /* ya terminó o no se puede terminar */ }
+        process.Dispose();
+        process = null;
     }
     public async Task ReconnectAsync(CancellationToken token = default)
     {
@@ -275,7 +312,8 @@ public sealed class EngineSession : IAsyncDisposable
         }
         string updated = string.Join("\n", configLines);
         if (original == updated) return;
-        if (!File.Exists(config + ".pre-servers.bak")) File.Copy(config, config + ".pre-servers.bak");
+        // Older builds named the one-time original copy ".pre-servers.bak"; keep honouring it.
+        if (!File.Exists(config + ".original.bak") && !File.Exists(config + ".pre-servers.bak")) File.Copy(config, config + ".original.bak");
         File.WriteAllText(config, updated, new UTF8Encoding(false));
     }
     private static int FreePort()
@@ -354,9 +392,11 @@ public sealed class EngineSession : IAsyncDisposable
             context.Cancel = true;
             try { StopAsync().GetAwaiter().GetResult(); } catch (Exception) { }
         }
-        PosixSignalRegistration.Create(PosixSignal.SIGTERM, StopNow);
-        PosixSignalRegistration.Create(PosixSignal.SIGINT, StopNow);
+        sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, StopNow);
+        sigint = PosixSignalRegistration.Create(PosixSignal.SIGINT, StopNow);
     }
+    // Held so the registrations are not finalized and silently removed.
+    private PosixSignalRegistration? sigterm, sigint;
     private readonly SemaphoreSlim stopGate = new(1, 1);
     public async Task StopAsync()
     {
@@ -368,17 +408,30 @@ public sealed class EngineSession : IAsyncDisposable
             if (process is { HasExited: false })
             {
                 try { await RememberSnapshotsAsync(); } catch (Exception) { /* el cierre EC sigue */ }
-                Client.Dispose(); Client = new EcClient();
-                string hash = File.ReadAllLines(Path.Combine(ProfilePath, "amule.conf")).Single(l => l.StartsWith("ECPassword=", StringComparison.Ordinal))[11..];
-                await Client.ConnectAsync(Port, hash);
-                await Client.RequestAsync(new(8));
-                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                await process.WaitForExitAsync(deadline.Token);
+                bool asked = false;
+                try
+                {
+                    Client.Dispose(); Client = new EcClient();
+                    string hash = File.ReadAllLines(Path.Combine(ProfilePath, "amule.conf")).Single(l => l.StartsWith("ECPassword=", StringComparison.Ordinal))[11..];
+                    await Client.ConnectAsync(Port, hash);
+                    asked = true;
+                    await Client.RequestAsync(new(8));
+                }
+                catch (Exception) { /* sin EC: se espera o se fuerza abajo */ }
+                if (asked)
+                {
+                    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    try { await process.WaitForExitAsync(deadline.Token); } catch (OperationCanceledException) { }
+                }
             }
-            Client.Dispose(); process?.Dispose(); process = null;
-            lease?.Dispose(); lease = null;
         }
-        finally { stopGate.Release(); }
+        finally
+        {
+            Client.Dispose();
+            KillEngine();
+            lease?.Dispose(); lease = null;
+            stopGate.Release();
+        }
     }
     public async ValueTask DisposeAsync() => await StopAsync();
 }

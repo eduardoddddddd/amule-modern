@@ -9,7 +9,8 @@ namespace AmuleModern.Desktop;
 
 public partial class ServersWindow : UserControl
 {
-    private readonly EcClient client = null!;
+    private readonly Func<EcClient> clientSource = null!;
+    private EcClient client => clientSource();
     private readonly ObservableCollection<ServerItem> servers = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -24,9 +25,9 @@ public partial class ServersWindow : UserControl
         GridColumns.Attach(ServerGrid, "servers", ["name", "address", "users", "files", "ping"], ColumnsButton);
         UpdateButtons();
     }
-    public ServersWindow(EcClient client) : this()
+    public ServersWindow(Func<EcClient> clientSource) : this()
     {
-        this.client = client;
+        this.clientSource = clientSource;
         AttachedToVisualTree += async (_, _) =>
         {
             isClosed = false;

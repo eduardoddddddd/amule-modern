@@ -134,7 +134,7 @@ public partial class MainWindow : Window
     private void NavSearchClicked(object? sender, RoutedEventArgs e)
     {
         if (!ready || quitting) return;
-        searchPage ??= new SearchWindow(engine.Client);
+        searchPage ??= new SearchWindow(() => engine.Client);
         searchPage.GoToDownloads -= OnGoToDownloads;
         searchPage.GoToDownloads += OnGoToDownloads;
         ShowPage("search", searchPage, NavSearch);
@@ -145,7 +145,7 @@ public partial class MainWindow : Window
     private void NavServersClicked(object? sender, RoutedEventArgs e)
     {
         if (!ready || quitting) return;
-        serversPage ??= new ServersWindow(engine.Client);
+        serversPage ??= new ServersWindow(() => engine.Client);
         ShowPage("servers", serversPage, NavServers);
     }
 
@@ -167,7 +167,7 @@ public partial class MainWindow : Window
     private void NavLogClicked(object? sender, RoutedEventArgs e)
     {
         if (!ready || quitting) return;
-        logPage ??= new LogWindow(engine.Client);
+        logPage ??= new LogWindow(() => engine.Client);
         ShowPage("log", logPage, NavLog);
     }
 
@@ -493,7 +493,7 @@ public partial class MainWindow : Window
             items.Length == 1 ? "Cancelar descarga" : "Cancelar descargas");
         await confirm.ShowDialog(this);
         if (!confirm.Accepted) return;
-        await ActAsync(async () => await engine.Client.CancelDownloadsAsync(items.Select(d => d.Hash).ToArray(), lifetime.Token),
+        await ActAsync(async () => { await engine.Client.CancelDownloadsAsync(items.Select(d => d.Hash).ToArray(), lifetime.Token); await RememberQueueAsync(); },
             items.Length == 1 ? "Descarga cancelada." : items.Length + " descargas canceladas.");
     }
 
@@ -501,8 +501,15 @@ public partial class MainWindow : Window
     {
         var items = SelectedDownloads().Where(d => d.IsComplete && d.EcId != 0).ToArray();
         if (items.Length == 0) { Message.Text = "Selecciona descargas completadas para quitarlas de la lista. El archivo en Incoming se conserva."; return; }
-        await ActAsync(async () => await engine.Client.ClearCompletedAsync(items.Select(d => d.EcId).ToArray(), lifetime.Token),
+        await ActAsync(async () => { await engine.Client.ClearCompletedAsync(items.Select(d => d.EcId).ToArray(), lifetime.Token); await RememberQueueAsync(); },
             "Quitadas de la lista. Los archivos en Incoming se conservan.");
+    }
+
+    // Without this, a crash before the next periodic snapshot would restore what was just cancelled.
+    private async Task RememberQueueAsync()
+    {
+        try { await engine.RememberSnapshotsAsync(lifetime.Token); }
+        catch (Exception) { /* la copia periódica lo reintenta */ }
     }
 
     private async void RefreshClicked(object? sender, RoutedEventArgs e) => await RefreshAsync();

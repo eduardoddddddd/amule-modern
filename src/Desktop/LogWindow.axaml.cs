@@ -8,46 +8,52 @@ namespace AmuleModern.Desktop;
 
 public partial class LogWindow : UserControl
 {
-    private readonly EcClient client = null!;
+    private const int MaxShownChars = 256 * 1024;
+    private readonly Func<EcClient> clientSource = null!;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly SemaphoreSlim gate = new(1, 1);
-    private bool available, closed;
+    private bool closed;
     public LogWindow()
     {
         InitializeComponent();
     }
-    public LogWindow(EcClient client) : this()
+    public LogWindow(Func<EcClient> clientSource) : this()
     {
-        this.client = client;
+        this.clientSource = clientSource;
         AttachedToVisualTree += async (_, _) =>
         {
             closed = false;
-            available = true;
             RefreshButton.IsEnabled = CopyButton.IsEnabled = true;
-            await ReloadAsync();
+            await ReloadGuardedAsync();
             if (!closed) timer.Start();
         };
         DetachedFromVisualTree += (_, _) => { timer.Stop(); closed = true; };
-        timer.Tick += async (_, _) =>
-        {
-            if (!available || closed || !await gate.WaitAsync(0)) return;
-            try { await ReloadAsync(); }
-            finally { gate.Release(); }
-        };
+        timer.Tick += async (_, _) => await ReloadGuardedAsync();
     }
-    private async void RefreshClicked(object? sender, RoutedEventArgs e) => await ReloadAsync();
+    private async void RefreshClicked(object? sender, RoutedEventArgs e) => await ReloadGuardedAsync();
+    private async Task ReloadGuardedAsync()
+    {
+        if (closed || !await gate.WaitAsync(0)) return;
+        try { await ReloadAsync(); }
+        finally { gate.Release(); }
+    }
     private async Task ReloadAsync()
     {
         if (closed) return;
         try
         {
+            var client = clientSource();
             string activity = await client.GetActivityLogAsync();
             string servers = await client.GetServerLogAsync();
             string text = activity.TrimEnd() + "\n\n--- mensajes del servidor ---\n" + servers.TrimEnd();
-            if (LogBox.Text != text)
+            if (text.Length > MaxShownChars) text = "…\n" + text[^MaxShownChars..];
+            string shown = LogBox.Text ?? "";
+            if (shown != text)
             {
+                bool following = LogBox.CaretIndex >= shown.Length;
+                int caret = LogBox.CaretIndex;
                 LogBox.Text = text;
-                LogBox.CaretIndex = text.Length;
+                LogBox.CaretIndex = following ? text.Length : Math.Min(caret, text.Length);
             }
             LogStatus.Text = "Registro del motor, en vivo.";
             CopyButton.IsEnabled = true;

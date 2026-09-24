@@ -12,7 +12,8 @@ namespace AmuleModern.Desktop;
 public partial class SearchWindow : UserControl
 {
     private const int MaxTabs = 12;
-    private readonly EcClient client = null!;
+    private readonly Func<EcClient> clientSource = null!;
+    private EcClient client => clientSource();
     private readonly ObservableCollection<SearchResult> rows = [];
     private readonly List<SearchTab> tabs = [];
     private SearchTab? current;
@@ -47,9 +48,9 @@ public partial class SearchWindow : UserControl
         ResultsGrid.ItemsSource = rows;
         GridColumns.Attach(ResultsGrid, "search", ["name", "size", "sources", "complete"], ColumnsButton);
     }
-    public SearchWindow(EcClient client) : this()
+    public SearchWindow(Func<EcClient> clientSource) : this()
     {
-        this.client = client;
+        this.clientSource = clientSource;
         AttachedToVisualTree += async (_, _) =>
         {
             closed = false;
