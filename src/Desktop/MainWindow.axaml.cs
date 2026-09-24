@@ -116,7 +116,6 @@ public partial class MainWindow : Window
     private void ShowPage(string id, Control page, Button nav)
     {
         if (!CanLeaveCurrentPage()) return;
-        if (currentPage == "settings" && id != "settings" && ready && !quitting) timer.Start();
         currentPage = id;
         DownloadsPanel.IsVisible = false;
         PageHost.Content = page;
@@ -159,7 +158,6 @@ public partial class MainWindow : Window
     private void NavSettingsClicked(object? sender, RoutedEventArgs e)
     {
         if (!ready || quitting) return;
-        timer.Stop();
         settingsPage ??= new SettingsWindow(engine);
         ShowPage("settings", settingsPage, NavSettings);
     }
@@ -319,10 +317,14 @@ public partial class MainWindow : Window
         throw new InvalidOperationException(error);
     }
 
+    // Settings may stop and restart the engine; polling must not treat that as a lost connection.
+    private bool EngineBusy => settingsPage?.IsBusy == true;
+
     private async Task RefreshAsync()
     {
-        if (!ready || quitting || currentPage != "downloads" || !await operations.WaitAsync(0)) return;
+        if (!ready || quitting || EngineBusy || !await operations.WaitAsync(0)) return;
         try { await ReadStateAsync(); }
+        catch (Exception) when (EngineBusy) { }
         catch (Exception ex) when (IsRecoverable(ex))
         {
             try { await engine.ReconnectAsync(lifetime.Token); await ReadStateAsync(); Message.Text = "Conexión EC restablecida. El motor no se ha reiniciado."; }
@@ -334,15 +336,19 @@ public partial class MainWindow : Window
 
     private async Task ReadStateAsync()
     {
-        snapshot = await engine.Client.GetDownloadsAsync(lifetime.Token);
+        bool downloads = currentPage == "downloads";
+        if (downloads)
+        {
+            snapshot = await engine.Client.GetDownloadsAsync(lifetime.Token);
+            QueueCount.Text = snapshot.Count.ToString();
+        }
         var stats = await engine.Client.RequestAsync(new(0x0a, EcTag.Integer(4, 0)), lifetime.Token);
-        QueueCount.Text = snapshot.Count.ToString();
         DownloadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x201)?.Number ?? 0) + "/s";
         UploadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x200)?.Number ?? 0) + "/s";
         var network = NetworkState.FromTag(stats.Find(5) ?? throw new InvalidDataException("Falta estado de red."));
         EngineBadge.Text = "●  " + network.Ed2kText;
         ConnectionStatus.Text = $"eD2k: {network.Ed2kText}   |   Kad: {network.KadText}";
-        ApplyFilter();
+        if (downloads) ApplyFilter();
     }
 
     private void ApplyFilter()
@@ -553,7 +559,7 @@ public partial class MainWindow : Window
         WindowState = WindowState.Normal;
         ShowInTaskbar = true;
         Activate();
-        if (ready && !quitting && currentPage == "downloads") { timer.Start(); await RefreshAsync(); }
+        if (ready && !quitting) { timer.Start(); await RefreshAsync(); }
         if (!string.IsNullOrWhiteSpace(link) && ready && !quitting)
         {
             ShowDownloadsPage();
