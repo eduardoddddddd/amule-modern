@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private ServersWindow? serversPage;
     private SharedWindow? sharedPage;
     private SettingsWindow? settingsPage;
+    private LogWindow? logPage;
 
     public MainWindow()
     {
@@ -95,7 +96,7 @@ public partial class MainWindow : Window
 
     private void SetNavSelected(Button selected)
     {
-        foreach (var btn in new[] { NavDownloads, NavSearch, NavServers, NavShared, NavSettings })
+        foreach (var btn in new[] { NavDownloads, NavSearch, NavServers, NavShared, NavSettings, NavLog })
         {
             btn.Classes.Remove("selected");
             if (btn == selected) btn.Classes.Add("selected");
@@ -163,6 +164,13 @@ public partial class MainWindow : Window
         ShowPage("settings", settingsPage, NavSettings);
     }
 
+    private void NavLogClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!ready || quitting) return;
+        logPage ??= new LogWindow(engine.Client);
+        ShowPage("log", logPage, NavLog);
+    }
+
     private async void WindowOpened(object? sender, EventArgs e)
     {
         if (startupAttempted) return;
@@ -191,7 +199,7 @@ public partial class MainWindow : Window
                 ? "Perfil listo. La X oculta a la bandeja y las transferencias siguen. «Salir y detener» cierra el motor."
                 : "Perfil de captura listo. Al cerrar, el motor se detiene.";
             AddButton.IsEnabled = RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled =
-                NavSettings.IsEnabled = NavShared.IsEnabled = true;
+                NavSettings.IsEnabled = NavShared.IsEnabled = NavLog.IsEnabled = true;
             if (Program.CapturePath == null)
             {
                 SingleInstance.Watch(link => Dispatcher.UIThread.Post(() => _ = ShowFromTrayAsync(link)), lifetime.Token);
@@ -332,7 +340,8 @@ public partial class MainWindow : Window
         DownloadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x201)?.Number ?? 0) + "/s";
         UploadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x200)?.Number ?? 0) + "/s";
         var network = NetworkState.FromTag(stats.Find(5) ?? throw new InvalidDataException("Falta estado de red."));
-        ConnectionStatus.Text = $"Motor local conectado   |   eD2k: {network.Ed2kText}   |   Kad: {network.KadText}";
+        EngineBadge.Text = "●  " + network.Ed2kText;
+        ConnectionStatus.Text = $"eD2k: {network.Ed2kText}   |   Kad: {network.KadText}";
         ApplyFilter();
     }
 
@@ -511,7 +520,7 @@ public partial class MainWindow : Window
         Message.Text = ex.Message;
         ConnectionStatus.Text = "Sin conexión EC verificada. Si el motor sigue, recarga; «Salir y detener» cierra el proceso.";
         AddButton.IsEnabled = PauseButton.IsEnabled = ResumeButton.IsEnabled = CancelButton.IsEnabled = ClearButton.IsEnabled =
-            RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled = NavSettings.IsEnabled = NavShared.IsEnabled =
+            RefreshButton.IsEnabled = NavServers.IsEnabled = NavSearch.IsEnabled = NavSettings.IsEnabled = NavShared.IsEnabled = NavLog.IsEnabled =
             CopyHashButton.IsEnabled = CopyLinkButton.IsEnabled = OpenFolderButton.IsEnabled = false;
     }
 

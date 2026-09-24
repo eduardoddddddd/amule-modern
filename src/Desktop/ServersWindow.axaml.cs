@@ -16,6 +16,7 @@ public partial class ServersWindow : UserControl
     private bool busy, available, isClosed;
     private NetworkState? state;
     private string? requestedEndpoint;
+    private bool? shownConnected, shownConnecting;
     public ServersWindow()
     {
         InitializeComponent();
@@ -68,11 +69,18 @@ public partial class ServersWindow : UserControl
         ServerGrid.SelectedItem = servers.FirstOrDefault(s => s.Endpoint == selected);
         EmptyServers.IsVisible = servers.Count == 0;
         NetworkBadge.Text = state.Ed2kText;
-        CurrentServer.Text = state.Server is { } current ? $"{current.Name} · {current.Endpoint}" : state.Connecting ? "Esperando respuesta del servidor…" : "Sin servidor conectado";
-        if (requestedEndpoint != null && !state.Connecting)
+        CurrentServer.Text = state.Connected && state.Server is { } current
+            ? $"{current.Name} · {current.Endpoint}"
+            : state.Connecting ? "Conectando…" : "Desconectado";
+        bool attemptFinished = requestedEndpoint != null && !state.Connecting;
+        if (attemptFinished || shownConnected != state.Connected || shownConnecting != state.Connecting)
         {
-            ServerMessage.Text = state.Connected ? $"Conexión confirmada por el motor: {state.Server?.Endpoint}." : $"No se ha establecido conexión con {requestedEndpoint}. Comprueba dirección, puerto y disponibilidad.";
-            requestedEndpoint = null;
+            ServerMessage.Text = attemptFinished && !state.Connected
+                ? $"No se ha establecido conexión con {requestedEndpoint}. Comprueba dirección, puerto y disponibilidad."
+                : state.Ed2kText + (state.Connected && state.Server is { } live ? $" · {live.Endpoint}" : "");
+            if (attemptFinished) requestedEndpoint = null;
+            shownConnected = state.Connected;
+            shownConnecting = state.Connecting;
         }
         UpdateButtons();
     }

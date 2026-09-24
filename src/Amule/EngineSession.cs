@@ -77,7 +77,7 @@ public sealed class EngineSession : IAsyncDisposable
             TempPath = isolated ? Path.Combine(ProfilePath, "Temp") : UserFolders.Temp();
             Directory.CreateDirectory(IncomingPath);
             Directory.CreateDirectory(TempPath);
-            string text = $"[eMule]\nNick=AmuleModern\nAppVersion=3.0.1\nIncomingDir={UserFolders.ForConfig(IncomingPath)}\nTempDir={UserFolders.ForConfig(TempPath)}\nPort={FreePort()}\nUDPPort={FreePort()}\nAutoconnect=0\nReconnect=0\nConnectToKad=0\nConnectToED2K=0\nUPnPEnabled=0\n[ExternalConnect]\nAcceptExternalConnections=1\nECAddress=127.0.0.1\nECPort={Port}\nECPassword={hash}\n[WebServer]\nEnabled=0\n";
+            string text = $"[eMule]\nNick=AmuleModern\nAppVersion=3.0.1\nIncomingDir={UserFolders.ForConfig(IncomingPath)}\nTempDir={UserFolders.ForConfig(TempPath)}\nPort={FreePort()}\nUDPPort={FreePort()}\nAutoconnect=0\nReconnect=1\nConnectToKad=0\nConnectToED2K=0\nUPnPEnabled=0\n[ExternalConnect]\nAcceptExternalConnections=1\nECAddress=127.0.0.1\nECPort={Port}\nECPassword={hash}\n[WebServer]\nEnabled=0\n";
             File.WriteAllText(config, text, new UTF8Encoding(false));
         }
         else
@@ -101,7 +101,7 @@ public sealed class EngineSession : IAsyncDisposable
         string original = File.ReadAllText(config);
         var settings = new Dictionary<string, string>
         {
-            ["ConnectToED2K"] = "1", ["Autoconnect"] = "0", ["Reconnect"] = "0",
+            ["ConnectToED2K"] = "1", ["Autoconnect"] = "0", ["Reconnect"] = "1",
             ["Ed2kServersUrl"] = "", ["Serverlist"] = "0", ["NewVersionCheck"] = "0",
             ["RemoveDeadServer"] = "0", ["IPFilterAutoLoad"] = "0",
             ["AddServerListFromServer"] = "0", ["AddServerListFromClient"] = "0",

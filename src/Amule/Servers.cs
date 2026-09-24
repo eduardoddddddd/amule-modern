@@ -116,6 +116,18 @@ public sealed partial class EcClient
         return updated;
     }
     public Task<EcPacket> ConnectServerAsync(ServerItem server, CancellationToken token = default) => RequestAsync(new(0x2f, server.ToTag()), token);
+    public async Task<string> GetActivityLogAsync(CancellationToken token = default)
+    {
+        var reply = await RequestAsync(new(0x35), token);
+        if (reply.Operation != 0x38) throw new InvalidDataException("Respuesta de registro inesperada.");
+        return reply.Find(0)?.String ?? "";
+    }
+    public async Task<string> GetServerLogAsync(CancellationToken token = default)
+    {
+        var reply = await RequestAsync(new(0x37), token);
+        if (reply.Operation != 0x3a) throw new InvalidDataException("Respuesta de mensajes de servidor inesperada.");
+        return reply.Find(0)?.String ?? "";
+    }
     public async Task DisconnectServerAsync(CancellationToken token = default)
     {
         // Pinned aMule disconnects established sessions; it does not cancel connection attempts.
