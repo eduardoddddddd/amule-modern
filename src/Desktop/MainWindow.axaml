@@ -118,7 +118,8 @@
           </StackPanel>
         </Grid>
 
-        <Border Grid.Row="4" Classes="card" ClipToBounds="True">
+        <Grid Grid.Row="4" RowDefinitions="*,Auto">
+        <Border Classes="card" ClipToBounds="True">
           <Grid>
             <DataGrid x:Name="DownloadsGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended"
                       SelectionChanged="SelectionChanged" HeadersVisibility="Column"
@@ -151,6 +152,25 @@
             </StackPanel>
           </Grid>
         </Border>
+        <Border Grid.Row="1" Classes="panel" Margin="0,10,0,0" Padding="14,12">
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
+            <StackPanel Spacing="4">
+              <TextBlock Text="DETALLE" Classes="section"/>
+              <TextBlock x:Name="DetailHint" Text="Selecciona una descarga para ver hash, ruta y fuentes." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+              <TextBlock x:Name="DetailHash" Classes="muted" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
+              <TextBlock x:Name="DetailPath" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
+              <TextBlock x:Name="DetailMeta" Classes="muted" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
+              <TextBlock x:Name="DetailLink" Classes="muted" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
+              <TextBlock x:Name="DetailFacts" Classes="muted" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+              <Button x:Name="CopyHashButton" Content="Copiar hash" Click="CopyHash" IsEnabled="False"/>
+              <Button x:Name="CopyLinkButton" Content="Copiar enlace" Click="CopyLink" IsEnabled="False"/>
+              <Button x:Name="OpenFolderButton" Content="Abrir carpeta" Click="OpenDetailFolder" IsEnabled="False"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+        </Grid>
 
         <Border Grid.Row="5" Classes="panel" Margin="0,12,0,0" Padding="14,10">
           <TextBlock x:Name="Message" Text="Preparando el perfil…" TextWrapping="Wrap" Classes="muted" FontSize="12"/>

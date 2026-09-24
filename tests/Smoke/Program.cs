@@ -42,6 +42,36 @@ var snapQueue = new DownloadItem("A448017AAF21D8525FC10AE87AA6729D", "copia.txt"
 Check(ProfileSnapshot.ParseServers(ProfileSnapshot.FormatServers([snapServer])).Single().Name == "Copia", "server snapshot keeps the name");
 var snapItem = ProfileSnapshot.ParseQueue(ProfileSnapshot.FormatQueue([snapQueue])).Single();
 Check(snapItem.Paused && snapItem.Link.Contains("A448017AAF21D8525FC10AE87AA6729D"), "queue snapshot keeps a paused link");
+byte[] detailHash = Convert.FromHexString("A448017AAF21D8525FC10AE87AA6729D");
+var detailTag = new EcTag(0x300, 4, [0, 0, 0, 1],
+    new EcTag(0x31e, 9, detailHash),
+    EcTag.Text(0x301, "copia.txt"),
+    EcTag.Integer(0x303, 3),
+    EcTag.Integer(0x308, 7),
+    EcTag.Integer(0x30a, 4),
+    EcTag.Integer(0x30d, 1),
+    EcTag.Integer(0x309, 11),
+    EcTag.Text(0x30e, "ed2k://|file|copia.txt|3|A448017AAF21D8525FC10AE87AA6729D|/"),
+    EcTag.Text(0x408, "012.part"),
+    EcTag.Integer(0x302, 12),
+    new EcTag(0x407, 1, Enumerable.Repeat((byte)0xab, 20).ToArray()));
+var detailed = DownloadItem.FromTag(detailTag);
+var partial = DownloadLocation.Resolve(Path.Combine("lib", "incoming"), Path.Combine("lib", "tmp"), detailed);
+Check(detailed.Detail.Link!.Contains("A448017AAF21D8525FC10AE87AA6729D")
+    && detailed.Detail.PriorityText == "Normal (automática)"
+    && detailed.Detail.Transferring == 1
+    && detailed.Detail.PartBaseName == "012.part"
+    && detailed.Detail.Aich == Convert.ToHexString(Enumerable.Repeat((byte)0xab, 20).ToArray())
+    && partial.DataFile!.Replace('\\', '/').EndsWith("tmp/012.part")
+    && partial.MetaFile!.Replace('\\', '/').EndsWith("tmp/012.part.met"),
+    "full detail keeps the link, priority, transferring sources and part basename");
+var complete = detailed with { State = 9, Name = "listo.txt", Detail = DownloadDetail.None };
+var finished = DownloadLocation.Resolve(Path.Combine("lib", "incoming"), Path.Combine("lib", "tmp"), complete);
+var escaped = DownloadLocation.Resolve(Path.Combine("lib", "incoming"), Path.Combine("lib", "tmp"), complete with { Name = ".." + Path.DirectorySeparatorChar + "fuera.txt" });
+var byNumber = DownloadLocation.Resolve(Path.Combine("lib", "incoming"), Path.Combine("lib", "tmp"), detailed with { Detail = detailed.Detail with { PartBaseName = null } });
+Check(finished.DataFile!.Replace('\\', '/').EndsWith("incoming/listo.txt") && finished.MetaFile == null && escaped.DataFile == null
+    && byNumber.DataFile!.Replace('\\', '/').EndsWith("tmp/012.part"),
+    "completed Incoming path, rejected traversal, and part number 012 when the basename is missing");
 // Parent TAGLEN excludes its OWN child-count but includes all child wire bytes.
 var nestedBytes = Convert.FromHexString("0700010601090000001F0001060206000000086578616D706C6500000102030405060708090A0B0C0D0E0F");
 var nested = EcProtocol.DecodeBody(nestedBytes);

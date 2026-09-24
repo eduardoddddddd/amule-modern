@@ -1,5 +1,9 @@
 # Estado al 23/09/2026 — 0.9.2-dev
 
+## Detalle de descarga
+
+La fila seleccionada muestra lo que el detalle FULL ya envía: hash, enlace, prioridad, fuentes (transfiriendo, no actuales, A4AF y completas), última recepción y AICH. La ruta se compone aquí: Incoming y el nombre si está completa; si no, `NNN.part` y `.part.met` en tmp. FULL no trae la lista de pares.
+
 ## Asociación ed2k
 
 En Ajustes, «Abrir enlaces ed2k://» registra el esquema para el usuario y guarda el programa anterior. «Quitar asociación» lo restaura, o borra la clave si no había ninguna. Si otro programa ya es el predeterminado de Windows, no se cambia esa elección. En macOS el `.app` declara el esquema y la misma acción usa Launch Services.
@@ -27,7 +31,7 @@ Repositorio: C:\Users\Edu\source\amule-modern. C# / Avalonia 12.1.2, SDK local .
 
 ## Pendiente para 1.0
 
-Ver README: panel de detalle, sesión larga, categorías, inicio con Windows, checksum formal y firma.
+Ver README: sesión larga, categorías, inicio con Windows, checksum formal y firma.
 
 ## Joplin
 
