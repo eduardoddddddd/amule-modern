@@ -32,7 +32,7 @@ public partial class ServersWindow : UserControl
             await ExecuteAsync(async () => { available = true; }, null);
             if (available && !isClosed) timer.Start();
             if (available && servers.Count == 0)
-                ServerMessage.Text = "Lista vacía. Importa un server.met y usa «Salir y detener» para guardarla; un cierre forzado no escribe server.met.";
+                ServerMessage.Text = "Lista vacía. Importa un server.met. La copia se guarda mientras el motor vive y se restaura si el proceso muere.";
         };
         DetachedFromVisualTree += (_, _) => { timer.Stop(); isClosed = true; };
         timer.Tick += async (_, _) =>
