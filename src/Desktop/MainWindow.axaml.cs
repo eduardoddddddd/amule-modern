@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Net.Sockets;
 using AmuleModern.Amule;
@@ -9,6 +10,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace AmuleModern.Desktop;
 
@@ -16,6 +18,7 @@ public partial class MainWindow : Window
 {
     private readonly ObservableCollection<DownloadItem> rows = [];
     private IReadOnlyList<DownloadItem> snapshot = [];
+    private readonly Dictionary<string, double> averageSpeed = new(StringComparer.Ordinal);
     private readonly EngineSession engine = new();
     private readonly SemaphoreSlim operations = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
@@ -39,7 +42,8 @@ public partial class MainWindow : Window
         SelectThemeItem(UiSettings.LoadTheme());
         SelectDensityItem(UiSettings.LoadDensity());
         themeReady = densityReady = true;
-        GridColumns.Attach(DownloadsGrid, "downloads", ["name", "size", "progress", "state", "speed", "sources"], ColumnsButton);
+        GridColumns.Attach(DownloadsGrid, "downloads", ["name", "size", "progress", "state", "speed", "eta", "sources"], ColumnsButton);
+        DownloadsGrid.AddHandler(PointerPressedEvent, SelectRowUnderPointer, RoutingStrategies.Tunnel, handledEventsToo: true);
         Opened += WindowOpened;
         Closing += WindowClosing;
         timer.Tick += async (_, _) => await RefreshAsync();
@@ -280,9 +284,20 @@ public partial class MainWindow : Window
             || factsLine.Length == 0
             || !factsLine.Contains("Transfiriendo", StringComparison.Ordinal))
             throw new InvalidOperationException("El panel de detalle no muestra hash, enlace, parcial o fuentes.");
+        var menuCheck = new CancelEventArgs();
+        DownloadsMenuOpening(null, menuCheck);
+        if (menuCheck.Cancel || !MenuPause.IsEnabled || MenuResume.IsEnabled || !MenuCopyHash.IsEnabled || !MenuCopyLink.IsEnabled)
+            throw new InvalidOperationException("El menú contextual no refleja la descarga seleccionada.");
         PauseButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
         if (rows[0].State != 7) throw new InvalidOperationException("El botón Pausar no pausó la cola real.");
+        if (rows[0].EtaText != "—") throw new InvalidOperationException("Una descarga pausada no debe mostrar tiempo restante.");
+        DownloadsGrid.SelectedItem = rows[0];
+        menuCheck = new CancelEventArgs();
+        DownloadsMenuOpening(null, menuCheck);
+        if (!MenuResume.IsEnabled || MenuPause.IsEnabled) throw new InvalidOperationException("El menú contextual no ofrece Reanudar tras pausar.");
+        if (DownloadItem.FormatEta(90) != "1 min" || DownloadItem.FormatEta(3 * 3600 + 5 * 60) != "3 h 05 min" || DownloadItem.FormatEta(40 * 86400) != "> 30 d")
+            throw new InvalidOperationException("Formato de tiempo restante incorrecto.");
         ResumeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await operations.WaitAsync(); operations.Release();
         if (rows[0].State == 7) throw new InvalidOperationException("El botón Reanudar no reanudó la cola real.");
@@ -308,7 +323,7 @@ public partial class MainWindow : Window
         FilterInput.Text = "";
         await WaitForUiAsync(() => rows.Count == unfilteredCount, "El filtro no restaura filas.");
         Message.Text = "Prueba de interfaz superada: añadir, pausar, reanudar, filtro y selección múltiple. Cancelar se cubre en las pruebas de integración.";
-        File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: Hide/Show preserves motor and controls; UI add, pause, resume, filter, multi-select. Real EC engine; isolated fixture; cancel covered by integration.\n");
+        File.WriteAllText(Path.ChangeExtension(Program.CapturePath!, ".validation.txt"), "PASS: Hide/Show preserves motor and controls; UI add, pause, resume, filter, multi-select, context menu state, ETA. Real EC engine; isolated fixture; cancel covered by integration.\n");
     }
 
     private static async Task WaitForUiAsync(Func<bool> condition, string error)
@@ -336,19 +351,62 @@ public partial class MainWindow : Window
 
     private async Task ReadStateAsync()
     {
-        bool downloads = currentPage == "downloads";
+        bool downloads = currentPage == "downloads" && IsVisible;
         if (downloads)
         {
-            snapshot = await engine.Client.GetDownloadsAsync(lifetime.Token);
+            snapshot = WithAverageSpeed(await engine.Client.GetDownloadsAsync(lifetime.Token));
             QueueCount.Text = snapshot.Count.ToString();
         }
         var stats = await engine.Client.RequestAsync(new(0x0a, EcTag.Integer(4, 0)), lifetime.Token);
-        DownloadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x201)?.Number ?? 0) + "/s";
-        UploadSpeed.Text = DownloadItem.FormatBytes(stats.Find(0x200)?.Number ?? 0) + "/s";
+        string down = DownloadItem.FormatBytes(stats.Find(0x201)?.Number ?? 0) + "/s";
+        string up = DownloadItem.FormatBytes(stats.Find(0x200)?.Number ?? 0) + "/s";
+        DownloadSpeed.Text = down;
+        UploadSpeed.Text = up;
         var network = NetworkState.FromTag(stats.Find(5) ?? throw new InvalidDataException("Falta estado de red."));
         EngineBadge.Text = "●  " + network.Ed2kText;
-        ConnectionStatus.Text = $"eD2k: {network.Ed2kText}   |   Kad: {network.KadText}";
+        ConnectionStatus.Text = $"eD2k: {network.Ed2kText}   |   Kad: {network.KadText}   |   ↓ {down}   ↑ {up}";
+        if (tray != null) tray.ToolTipText = $"aMule Modern · ↓ {down}  ↑ {up}";
         if (downloads) ApplyFilter();
+    }
+
+    // Exponential average over roughly the last ten polls, so the ETA does not jump with each sample.
+    private IReadOnlyList<DownloadItem> WithAverageSpeed(IReadOnlyList<DownloadItem> items)
+    {
+        var result = new DownloadItem[items.Count];
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            seen.Add(item.Hash);
+            double average = item.IsComplete || item.State == 7 ? 0
+                : averageSpeed.TryGetValue(item.Hash, out double previous) ? previous * 0.8 + item.Speed * 0.2
+                : item.Speed;
+            averageSpeed[item.Hash] = average;
+            result[i] = item with { AverageSpeed = average };
+        }
+        foreach (string gone in averageSpeed.Keys.Where(hash => !seen.Contains(hash)).ToArray()) averageSpeed.Remove(gone);
+        return result;
+    }
+
+    private void SelectRowUnderPointer(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(DownloadsGrid).Properties.IsRightButtonPressed) return;
+        var row = (e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true);
+        if (row?.DataContext is DownloadItem item && !DownloadsGrid.SelectedItems.Contains(item))
+            DownloadsGrid.SelectedItem = item;
+    }
+
+    private void DownloadsMenuOpening(object? sender, CancelEventArgs e)
+    {
+        UpdateActionButtons();
+        if (SelectedDownloads().Length == 0) { e.Cancel = true; return; }
+        MenuPause.IsEnabled = PauseButton.IsEnabled;
+        MenuResume.IsEnabled = ResumeButton.IsEnabled;
+        MenuCancel.IsEnabled = CancelButton.IsEnabled;
+        MenuClear.IsEnabled = ClearButton.IsEnabled;
+        MenuCopyHash.IsEnabled = CopyHashButton.IsEnabled;
+        MenuCopyLink.IsEnabled = CopyLinkButton.IsEnabled;
+        MenuOpenFolder.IsEnabled = OpenFolderButton.IsEnabled;
     }
 
     private void ApplyFilter()
@@ -569,7 +627,6 @@ public partial class MainWindow : Window
 
     private async Task HideToTrayAsync()
     {
-        timer.Stop();
         string marker = Path.Combine(engine.ProfilePath, "tray-explained");
         if (!File.Exists(marker))
         {

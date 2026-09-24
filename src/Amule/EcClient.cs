@@ -72,6 +72,19 @@ public sealed class EcCommandException(string message) : Exception(message);
 public sealed record DownloadItem(string Hash, string Name, ulong Size, ulong Done, ulong Speed, ulong Sources, byte State, ulong EcId)
 {
     public DownloadDetail Detail { get; init; } = DownloadDetail.None;
+    // Smoothed bytes/s supplied by the UI; the engine only reports the instantaneous rate.
+    public double AverageSpeed { get; init; }
+    public double? EtaSeconds => IsComplete || State == 7 || AverageSpeed < 1 || Done >= Size ? null : (Size - Done) / AverageSpeed;
+    public string EtaText => EtaSeconds is double s ? FormatEta(s) : "—";
+    public static string FormatEta(double seconds)
+    {
+        if (seconds >= 30 * 86400) return "> 30 d";
+        var span = TimeSpan.FromSeconds(Math.Ceiling(seconds));
+        if (span.TotalDays >= 1) return $"{(int)span.TotalDays} d {span.Hours} h";
+        if (span.TotalHours >= 1) return $"{(int)span.TotalHours} h {span.Minutes:00} min";
+        if (span.TotalMinutes >= 1) return $"{(int)span.TotalMinutes} min";
+        return $"{span.Seconds} s";
+    }
     public double Progress => Size == 0 ? 0 : Math.Clamp(100d * Done / Size, 0, 100);
     public string ProgressText => $"{Progress:0.0} %";
     public string SizeText => FormatBytes(Size);

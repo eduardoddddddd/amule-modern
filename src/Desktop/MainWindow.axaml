@@ -141,8 +141,21 @@
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="ESTADO" Binding="{Binding StateText}" Width="120"/>
                 <DataGridTextColumn Header="VELOCIDAD" Binding="{Binding SpeedText}" SortMemberPath="Speed" Width="110"/>
+                <DataGridTextColumn Header="RESTANTE" Binding="{Binding EtaText}" SortMemberPath="EtaSeconds" Width="100"/>
                 <DataGridTextColumn Header="FUENTES" Binding="{Binding Sources}" Width="90"/>
               </DataGrid.Columns>
+              <DataGrid.ContextMenu>
+                <ContextMenu Opening="DownloadsMenuOpening">
+                  <MenuItem x:Name="MenuPause" Header="Pausar" Click="PauseSelected"/>
+                  <MenuItem x:Name="MenuResume" Header="Reanudar" Click="ResumeSelected"/>
+                  <MenuItem x:Name="MenuCancel" Header="Cancelar…" Click="CancelSelected"/>
+                  <MenuItem x:Name="MenuClear" Header="Quitar de la lista" Click="ClearCompletedSelected"/>
+                  <Separator/>
+                  <MenuItem x:Name="MenuCopyHash" Header="Copiar hash" Click="CopyHash"/>
+                  <MenuItem x:Name="MenuCopyLink" Header="Copiar enlace ed2k" Click="CopyLink"/>
+                  <MenuItem x:Name="MenuOpenFolder" Header="Abrir carpeta" Click="OpenDetailFolder"/>
+                </ContextMenu>
+              </DataGrid.ContextMenu>
             </DataGrid>
             <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
               <Border Width="56" Height="56" CornerRadius="16" Background="{DynamicResource App.AccentSoft}" HorizontalAlignment="Center">
