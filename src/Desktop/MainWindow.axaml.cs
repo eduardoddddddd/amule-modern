@@ -348,8 +348,13 @@ public partial class MainWindow : Window
             int index = -1; for (int i = 0; i < rows.Count; i++) if (rows[i].Hash == item.Hash) { index = i; break; }
             if (index < 0) rows.Add(item); else if (rows[index] != item) rows[index] = item;
         }
-        foreach (var row in rows.Where(d => selected.Contains(d.Hash)))
-            if (!DownloadsGrid.SelectedItems.Contains(row)) DownloadsGrid.SelectedItems.Add(row);
+        var keep = rows.Where(d => selected.Contains(d.Hash)).ToArray();
+        var now = SelectedDownloads();
+        if (now.Length != keep.Length || now.Any(d => !selected.Contains(d.Hash)))
+        {
+            DownloadsGrid.SelectedItems.Clear();
+            foreach (var row in keep) DownloadsGrid.SelectedItems.Add(row);
+        }
         EmptyState.IsVisible = rows.Count == 0;
         EmptyTitle.Text = snapshot.Count == 0 ? "Tu próxima descarga empieza aquí" : "No hay resultados para este filtro";
         UpdateActionButtons();
