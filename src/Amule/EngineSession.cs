@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.AccessControl;
@@ -127,7 +128,7 @@ public sealed class EngineSession : IAsyncDisposable
             token.ThrowIfCancellationRequested();
             if (process.HasExited) throw new IOException($"amuled terminó ({process.ExitCode}). Revisa el logfile del perfil.");
             Client.Dispose(); Client = new EcClient();
-            try { await Client.ConnectAsync(Port, hash, token); await Client.EnableEd2kAsync(token); return; }
+            try { await Client.ConnectAsync(Port, hash, token); await Client.EnableEd2kAsync(token); await RestoreSnapshotsAsync(token); StartSnapshotTimer(); InstallShutdownHook(); return; }
             catch (SocketException) { await Task.Delay(200, token); }
         }
         throw new TimeoutException("amuled no abrió la conexión EC a tiempo.");
@@ -282,19 +283,102 @@ public sealed class EngineSession : IAsyncDisposable
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start(); int port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop(); return port;
     }
+    private Timer? snapshotTimer;
+    private int shutdownHooked;
+    public async Task RememberSnapshotsAsync(CancellationToken token = default)
+    {
+        if (string.IsNullOrEmpty(ProfilePath)) return;
+        var servers = await Client.GetServersAsync(token);
+        var downloads = await Client.GetDownloadsAsync(token);
+        WriteSnapshot("server-snapshot.txt", ProfileSnapshot.FormatServers(servers));
+        WriteSnapshot("queue-snapshot.txt", ProfileSnapshot.FormatQueue(downloads));
+    }
+    public async Task RestoreSnapshotsAsync(CancellationToken token = default)
+    {
+        await RestoreServersAsync(token);
+        await RestoreQueueAsync(token);
+    }
+    private async Task RestoreServersAsync(CancellationToken token)
+    {
+        string path = Path.Combine(ProfilePath, "server-snapshot.txt");
+        if (!File.Exists(path)) return;
+        var wanted = ProfileSnapshot.ParseServers(File.ReadAllText(path));
+        if (wanted.Count == 0) return;
+        var present = (await Client.GetServersAsync(token)).Select(s => s.Endpoint).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missing = wanted.Where(s => !present.Contains(s.Address + ":" + s.Port)).ToArray();
+        if (missing.Length > 0) await Client.ImportServersAsync(missing, token);
+    }
+    private async Task RestoreQueueAsync(CancellationToken token)
+    {
+        string path = Path.Combine(ProfilePath, "queue-snapshot.txt");
+        if (!File.Exists(path)) return;
+        var wanted = ProfileSnapshot.ParseQueue(File.ReadAllText(path));
+        if (wanted.Count == 0) return;
+        var present = (await Client.GetDownloadsAsync(token)).Select(d => d.Hash).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in wanted)
+        {
+            if (!present.Contains(item.Hash))
+            {
+                try { await Client.AddLinkAsync(item.Link, token); }
+                catch (EcCommandException) { /* el parcial ya está en la cola o el enlace no cabe */ }
+            }
+            if (item.Paused)
+            {
+                try { await Client.PauseAsync(item.Hash, true, token); }
+                catch (EcCommandException) { }
+            }
+        }
+    }
+    private void WriteSnapshot(string name, string text)
+    {
+        string path = Path.Combine(ProfilePath, name);
+        string temp = path + ".tmp";
+        File.WriteAllText(temp, text);
+        File.Move(temp, path, overwrite: true);
+    }
+    private void StartSnapshotTimer()
+    {
+        snapshotTimer?.Dispose();
+        snapshotTimer = new Timer(_ => _ = RememberSafeAsync(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15));
+    }
+    private async Task RememberSafeAsync()
+    {
+        try { if (process is { HasExited: false }) await RememberSnapshotsAsync(); }
+        catch (Exception) { /* una copia fallida no detiene el motor */ }
+    }
+    private void InstallShutdownHook()
+    {
+        if (Interlocked.Exchange(ref shutdownHooked, 1) == 1) return;
+        void StopNow(PosixSignalContext context)
+        {
+            context.Cancel = true;
+            try { StopAsync().GetAwaiter().GetResult(); } catch (Exception) { }
+        }
+        PosixSignalRegistration.Create(PosixSignal.SIGTERM, StopNow);
+        PosixSignalRegistration.Create(PosixSignal.SIGINT, StopNow);
+    }
+    private readonly SemaphoreSlim stopGate = new(1, 1);
     public async Task StopAsync()
     {
-        if (process is { HasExited: false })
+        await stopGate.WaitAsync();
+        try
         {
-            Client.Dispose(); Client = new EcClient();
-            string hash = File.ReadAllLines(Path.Combine(ProfilePath, "amule.conf")).Single(l => l.StartsWith("ECPassword=", StringComparison.Ordinal))[11..];
-            await Client.ConnectAsync(Port, hash);
-            await Client.RequestAsync(new(8));
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            await process.WaitForExitAsync(deadline.Token);
+            snapshotTimer?.Dispose();
+            snapshotTimer = null;
+            if (process is { HasExited: false })
+            {
+                try { await RememberSnapshotsAsync(); } catch (Exception) { /* el cierre EC sigue */ }
+                Client.Dispose(); Client = new EcClient();
+                string hash = File.ReadAllLines(Path.Combine(ProfilePath, "amule.conf")).Single(l => l.StartsWith("ECPassword=", StringComparison.Ordinal))[11..];
+                await Client.ConnectAsync(Port, hash);
+                await Client.RequestAsync(new(8));
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                await process.WaitForExitAsync(deadline.Token);
+            }
+            Client.Dispose(); process?.Dispose(); process = null;
+            lease?.Dispose(); lease = null;
         }
-        Client.Dispose(); process?.Dispose(); process = null;
-        lease?.Dispose(); lease = null;
+        finally { stopGate.Release(); }
     }
     public async ValueTask DisposeAsync() => await StopAsync();
 }

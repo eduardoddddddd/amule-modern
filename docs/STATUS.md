@@ -22,12 +22,12 @@ Repositorio: C:\Users\Edu\source\amule-modern. C# / Avalonia 12.1.2, SDK local .
 
 - Shell monoventana, tema claro/oscuro/sistema, import URL de `server.met` con nombres `ST_SERVERNAME`.
 - **Pestañas de búsqueda:** cada búsqueda queda en una pestaña (máx. 12). Solo una está viva en el motor; las anteriores son instantáneas (descarga por enlace ed2k).
-- **Lista de servidores:** no se pide la lista con eD2k a medias al entrar en la página (aMule devolvía vacío y la tabla se borraba). eD2k se habilita al arrancar. `RemoveDeadServer=0` y sin autodescarga de ipfilter/listas. Un cierre forzado sigue sin escribir `server.met`; hay que usar «Salir y detener».
+- **Lista de servidores:** no se pide la lista con eD2k a medias al entrar en la página (aMule devolvía vacío y la tabla se borraba). eD2k se habilita al arrancar. `RemoveDeadServer=0` y sin autodescarga de ipfilter/listas. Una copia propia de servidores y de la cola se reescribe en marcha; si el proceso muere, el siguiente arranque las vuelve a poner. SIGTERM y SIGINT cierran el motor por EC.
 - Smoke+integración: 92 checks PASS.
 
 ## Pendiente para 1.0
 
-Ver README: panel de detalle, cierre siempre ordenado, sesión larga, categorías, inicio con Windows, checksum formal y firma.
+Ver README: panel de detalle, sesión larga, categorías, inicio con Windows, checksum formal y firma.
 
 ## Joplin
 

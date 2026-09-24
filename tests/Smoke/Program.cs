@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AmuleModern.Amule;
 using System.Buffers.Binary;
 using System.Net;
@@ -36,6 +37,11 @@ void Reject(byte[] body, string name)
 // Independent reference bytes from EC stats request: fixed 8-byte big-endian header.
 var stats = EcProtocol.Encode(new(0x0a, EcTag.Integer(4, 0)));
 Check(Convert.ToHexString(stats) == "000000200000000B0A00010008020000000100", "golden EC stats request");
+var snapServer = new ServerItem("203.0.113.50", 4661, "Copia", 0, 0, 0);
+var snapQueue = new DownloadItem("A448017AAF21D8525FC10AE87AA6729D", "copia.txt", 3, 0, 0, 0, 7, 1);
+Check(ProfileSnapshot.ParseServers(ProfileSnapshot.FormatServers([snapServer])).Single().Name == "Copia", "server snapshot keeps the name");
+var snapItem = ProfileSnapshot.ParseQueue(ProfileSnapshot.FormatQueue([snapQueue])).Single();
+Check(snapItem.Paused && snapItem.Link.Contains("A448017AAF21D8525FC10AE87AA6729D"), "queue snapshot keeps a paused link");
 // Parent TAGLEN excludes its OWN child-count but includes all child wire bytes.
 var nestedBytes = Convert.FromHexString("0700010601090000001F0001060206000000086578616D706C6500000102030405060708090A0B0C0D0E0F");
 var nested = EcProtocol.DecodeBody(nestedBytes);
@@ -370,6 +376,10 @@ if (args.Contains("--integration"))
             Check(!(await engine.Client.GetNetworkStateAsync()).Connected, "disconnect established eD2k session");
         }
         finally { ed2kListener.Stop(); }
+        await engine.RememberSnapshotsAsync();
+        Process.GetProcessById(engine.ProcessId!.Value).Kill(entireProcessTree: true);
+        for (int i = 0; i < 50 && engine.ProcessId.HasValue; i++) await Task.Delay(50);
+        Check(!engine.ProcessId.HasValue, "killed motor is not treated as still running");
     }
     Check(true, "graceful shutdown without kill");
     await using (var restarted = new EngineSession())

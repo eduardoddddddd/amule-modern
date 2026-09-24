@@ -31,7 +31,7 @@ eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y c
 
 ## Cerrar y lista de servidores
 
-Usa **Salir y detener** (barra lateral o menú de la bandeja). La X solo oculta a la bandeja; un cierre forzado del proceso **no escribe** `server.met` y la lista desaparece al volver a abrir.
+Usa **Salir y detener** (barra lateral o menú de la bandeja). La X solo oculta a la bandeja. La lista de servidores y las descargas incompletas se copian mientras el motor vive; si el proceso muere, el siguiente arranque las restaura. Una señal de terminación cierra el motor por EC.
 
 Al entrar en Servidores, si la tabla está vacía: **Ejemplo → Importar URL** (`https://upd.emule-security.org/server.met`). La importación guarda nombres del `server.met`. Conectar es un paso aparte: selecciona un servidor y pulsa Conectar.
 
@@ -49,7 +49,6 @@ Esto es **0.9.2-dev**: sirve para el uso diario (buscar, descargar, servidores, 
 **Debe estar antes de llamar 1.0**
 
 - Panel de detalle de cada descarga (ruta, hash, fuentes).
-- Cierre siempre ordenado, de modo que la lista de servidores y la cola no dependan de no matar el proceso.
 - Sesión larga (8–24 h) y suspensión/reanudación de Windows sin corromper la cola.
 
 **Debería estar**
