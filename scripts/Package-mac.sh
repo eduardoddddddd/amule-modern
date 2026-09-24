@@ -48,9 +48,9 @@ cat > "$app/Contents/Info.plist" <<'EOF'
   <key>CFBundleIdentifier</key>
   <string>org.amule-modern.desktop</string>
   <key>CFBundleVersion</key>
-  <string>0.9.2</string>
+  <string>1.0.0</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.9.2</string>
+  <string>1.0.0</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>

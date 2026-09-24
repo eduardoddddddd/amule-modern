@@ -1,4 +1,13 @@
-# Estado al 23/09/2026 — 0.9.2-dev
+# Estado al 24/09/2026 — 1.0.0
+
+Publicada como 1.0.0 tras sesiones de uso real de varias horas descargando sin incidencias. Cambios de la versión:
+
+- Las páginas Buscar, Servidores y Actividad usan siempre el cliente EC vigente; una reconexión o un cambio de carpetas ya no las deja sin conexión.
+- Si el arranque falla o el motor no se cierra por EC, se termina el proceso y se libera el bloqueo del perfil; no quedan `amuled` huérfanos.
+- Estado eD2k/Kad y velocidades vivos en todas las pantallas y en la bandeja.
+- Columna Restante (velocidad media reciente) y menú de botón derecho en Descargas.
+- Registro de actividad acotado, que no mueve la vista si estás leyendo más arriba.
+- Smoke+integración: 97 checks PASS. Capturas de interfaz: 5/5 PASS.
 
 ## Detalle de descarga
 
@@ -29,9 +38,9 @@ Repositorio: C:\Users\Edu\source\amule-modern. C# / Avalonia 12.1.2, SDK local .
 - **Lista de servidores:** no se pide la lista con eD2k a medias al entrar en la página (aMule devolvía vacío y la tabla se borraba). eD2k se habilita al arrancar. `RemoveDeadServer=0` y sin autodescarga de ipfilter/listas. Una copia propia de servidores y de la cola se reescribe en marcha; si el proceso muere, el siguiente arranque las vuelve a poner. SIGTERM y SIGINT cierran el motor por EC.
 - Smoke+integración: 92 checks PASS.
 
-## Pendiente para 1.0
+## Después de 1.0
 
-Ver README: sesión larga, categorías, inicio con Windows, checksum formal y firma.
+Ver README: categorías, prioridad editable, inicio con Windows, filtro IP, firma y notarización.
 
 ## Joplin
 

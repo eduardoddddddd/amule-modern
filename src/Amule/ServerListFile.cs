@@ -69,7 +69,7 @@ public static class ServerListFile
         for (int hop = 0; hop < 5; hop++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("AmuleModern/0.9");
+            request.Headers.UserAgent.ParseAdd("AmuleModern/1.0");
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
             if ((int)response.StatusCode is >= 300 and < 400)
             {

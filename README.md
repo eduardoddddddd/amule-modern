@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/estado-0.9.2--dev-yellow" alt="0.9.2-dev">
+  <img src="https://img.shields.io/badge/versión-1.0.0-brightgreen" alt="1.0.0">
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?logo=windows&logoColor=white" alt="Windows x64">
   <img src="https://img.shields.io/badge/macOS-arm64-000000?logo=apple&logoColor=white" alt="macOS arm64">
   <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white" alt=".NET 10">
@@ -16,16 +16,17 @@
 
 Interfaz de escritorio en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC. Es la misma aplicación en Windows y en macOS: en Mac el motor es el `amuled` oficial del DMG universal2, no el ejecutable de Windows.
 
-**No es la versión 1.0.** Estado al 24/09/2026: **0.9.2-dev**. Sirve para el uso diario: una ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores, detalle de cada descarga, columnas recordadas, asociación opcional de `ed2k://`, ZIP portable e instalador por usuario. La X oculta a la bandeja. «Salir y detener» cierra aMule por EC. Si el proceso muere, el siguiente arranque restaura la lista de servidores y las descargas incompletas.
+**Versión 1.0.0** (24/09/2026). Para el uso diario: una ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores, detalle de cada descarga, columnas recordadas, asociación opcional de `ed2k://`, ZIP portable e instalador por usuario. La X oculta a la bandeja. «Salir y detener» cierra aMule por EC. Si el proceso muere, el siguiente arranque restaura la lista de servidores y las descargas incompletas.
 
 ## Qué hace hoy
 
-- **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo). La fila seleccionada muestra hash, enlace, prioridad y recuentos de fuentes (transfiriendo, no actuales, A4AF y completas). Puedes copiar el hash, copiar el enlace y abrir la carpeta. La ruta es el nombre en Incoming si está completa; si no, `NNN.part` y su `.part.met` en tmp. El detalle FULL no trae nombres de pares.
+- **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo). La columna Restante estima el tiempo con la velocidad media reciente (`—` si está pausada o sin velocidad). El botón derecho sobre una fila ofrece las mismas acciones, más copiar hash, copiar enlace y abrir carpeta. La fila seleccionada muestra hash, enlace, prioridad y recuentos de fuentes (transfiriendo, no actuales, A4AF y completas). Puedes copiar el hash, copiar el enlace y abrir la carpeta. La ruta es el nombre en Incoming si está completa; si no, `NNN.part` y su `.part.met` en tmp. El detalle FULL no trae nombres de pares.
 - **Servidores:** añadir IPv4 o dominio y puerto, quitar, importar desde archivo (texto o `server.met`) o URL http/https, conectar y desconectar. El aviso de arriba y el de abajo usan el mismo estado eD2k. Si la sesión se cae, aMule reintenta; no conecta solo al arrancar. Importar no activa la descarga automática de listas.
 - **Actividad:** el registro del motor y los mensajes del servidor, en vivo, con copia al portapapeles.
 - **Buscar:** una búsqueda activa en el servidor actual, global eD2k o Kad; cada búsqueda se guarda en una pestaña para volver a ella. Resultados con fuentes, filtro, selección múltiple y descarga a la cola.
 - **Ajustes:** Incoming, tmp, límites de bajada/subida (KiB/s, 0 = ilimitado), Kad y la asociación opcional de `ed2k://`. Activarla recuerda el programa anterior y quitarla lo restaura; no sustituye sola la elección de Windows. Por defecto la biblioteca está en Descargas (`amule-modern/incoming` y `tmp`): `%USERPROFILE%\Downloads` en Windows y `~/Downloads` en macOS. Activar Kad no abre el cortafuegos. Si la subida es muy baja, aMule puede recortar la bajada.
 - **Compartidos:** lista lo que el motor ofrece. Incoming se comparte solo; puedes añadir o quitar carpetas extra.
+- **Estado:** la barra inferior muestra eD2k, Kad y las velocidades de bajada y subida en todas las pantallas. Con la ventana oculta, el icono de la bandeja da las velocidades al pasar el ratón.
 - **Tablas:** en Descargas, Buscar, Servidores y Compartidos puedes redimensionar y reordenar columnas. El botón Columnas muestra u oculta el resto; la primera columna se queda. Ancho, orden y visibilidad se recuerdan en `ui.json`, junto al tema. En la barra lateral, Filas elige cómoda (44 px) o compacta (36 px) para todas las tablas.
 
 eD2k se habilita al arrancar, sin autoconexión. Hay que añadir un servidor y conectar a mano. Kad empieza desactivado.
@@ -43,25 +44,19 @@ La copia de cada día es la instalación por usuario, la del icono del Escritori
 
 `scripts\Install.ps1` sustituye esos binarios y conserva el perfil y las descargas. Arrancar con `Start.ps1` o `Iniciar.cmd` desde el checkout usa otro perfil, `.local\desktop` del repositorio, aunque Incoming y tmp apunten a la misma biblioteca. Un solo acceso. No lances dos `amuled` a la vez.
 
-## Qué falta para 1.0
+## Limitaciones conocidas de 1.0
 
-Esto es **0.9.2-dev**: sirve para el uso diario (buscar, descargar, servidores, compartidos, bandeja, instalador), no es un 1.0.
+- El instalador no está firmado: SmartScreen puede avisar la primera vez. En macOS la app no está notarizada.
+- Validado en Windows 11 x64 y macOS arm64. Windows 10, ARM64 y Linux no están probados.
+- Una sola búsqueda viva en el motor; las pestañas anteriores son instantáneas.
+- La cola se ha usado en sesiones de varias horas con descargas reales. No hay una prueba automatizada de suspensión/reanudación de Windows ni de checksum independiente.
 
-**Debe estar antes de llamar 1.0**
+## Después de 1.0
 
-- Sesión larga (8–24 h) y suspensión/reanudación de Windows sin corromper la cola.
-
-**Debería estar**
-
-- Categorías de descargas.
-- Inicio con Windows, desactivado por defecto.
-- Prueba formal de checksum de una descarga real (ya se ha completado una a mano).
-- Instalador firmado (si no, SmartScreen avisará).
-
-**Puede esperar**
-
-- Windows 10 y ARM64 validados; Linux. macOS arm64 ya arranca (ver abajo); falta notarización y un instalador firmado.
-- Varias búsquedas activas a la vez en el motor (hoy: una viva + pestañas instantánea).
+- Categorías de descargas y prioridad editable por descarga.
+- Inicio con Windows (desactivado por defecto) y conexión opcional al último servidor al arrancar.
+- Menú de botón derecho también en Buscar y Servidores; aviso al completar una descarga.
+- Filtro IP, instalador firmado y notarización en macOS.
 - Motor remoto, plugins, migración de parciales desde eMule/aMule antiguo.
 
 El plan completo está en [docs/PLAN.md](docs/PLAN.md). El estado ejecutado, en [docs/STATUS.md](docs/STATUS.md).
