@@ -59,6 +59,38 @@ internal static class UiSettings
         }
     }
 
+    public static (string? OwnedCommand, ProtocolSnapshot? Previous) LoadEd2k()
+    {
+        lock (Gate)
+        {
+            if (ReadObject()["ed2k"] is not JsonObject node) return (null, null);
+            string? owned = Text(node, "ownedCommand");
+            if (node["previous"] is not JsonObject previous) return (owned, null);
+            bool exists = previous["exists"] is JsonValue flag && flag.TryGetValue<bool>(out bool value) && value;
+            bool url = previous["urlProtocol"] is JsonValue urlFlag && urlFlag.TryGetValue<bool>(out bool urlValue) && urlValue;
+            return (owned, new ProtocolSnapshot(exists, Text(previous, "description"), Text(previous, "command"), url));
+        }
+    }
+
+    public static void SaveEd2k(string? ownedCommand, ProtocolSnapshot? previous)
+    {
+        lock (Gate)
+        {
+            var root = ReadObject();
+            var node = new JsonObject();
+            if (ownedCommand != null) node["ownedCommand"] = ownedCommand;
+            if (previous != null)
+            {
+                var saved = new JsonObject { ["exists"] = previous.Exists, ["urlProtocol"] = previous.UrlProtocol };
+                if (previous.Description != null) saved["description"] = previous.Description;
+                if (previous.Command != null) saved["command"] = previous.Command;
+                node["previous"] = saved;
+            }
+            root["ed2k"] = node;
+            WriteObject(root);
+        }
+    }
+
     public static void SaveColumns(string table, IReadOnlyList<ColumnLayout> columns)
     {
         lock (Gate)

@@ -48,6 +48,40 @@ finally
     Directory.Delete(dir, true);
 }
 
+string exe = OperatingSystem.IsWindows() ? @"C:\Apps\AmuleModern.exe" : "/tmp/AmuleModern.exe";
+var empty = new ProtocolSnapshot(false, null, null, false);
+var other = new ProtocolSnapshot(true, "eMule", "\"C:\\eMule\\emule.exe\" \"%1\"", true);
+var enabled = Ed2kAssociation.Enable(other, exe, null, null);
+Check(enabled.Action == AssociationAction.WriteOurs && enabled.Previous == other && enabled.Previous.Exists, "enable remembers the previous program");
+var again = Ed2kAssociation.Enable(new(true, Ed2kAssociation.Description, enabled.OwnedCommand, true), exe, enabled.Previous, enabled.OwnedCommand);
+Check(again.Action == AssociationAction.None && again.Previous == other, "enabling again keeps the saved program");
+var moved = Ed2kAssociation.Enable(new(true, Ed2kAssociation.Description, enabled.OwnedCommand, true), exe + ".new", other, enabled.OwnedCommand);
+Check(moved.Action == AssociationAction.WriteOurs && moved.Previous == other, "our old command is refreshed without forgetting the previous program");
+var removed = Ed2kAssociation.Disable(new(true, Ed2kAssociation.Description, moved.OwnedCommand, true), exe + ".new", other, moved.OwnedCommand);
+Check(removed.Action == AssociationAction.Restore && removed.Restore == other && removed.OwnedCommand == null, "disable restores the previous program");
+var fresh = Ed2kAssociation.Enable(empty, exe, null, null);
+var deleted = Ed2kAssociation.Disable(new(true, Ed2kAssociation.Description, fresh.OwnedCommand, true), exe, fresh.Previous, fresh.OwnedCommand);
+Check(deleted.Action == AssociationAction.Delete, "disable deletes the key when nothing was there before");
+var foreign = Ed2kAssociation.Disable(other, exe, other, fresh.OwnedCommand);
+Check(foreign.Action == AssociationAction.None && foreign.OwnedCommand == null, "disable does not replace a program we do not own");
+
+UiSettings.FilePathOverride = Path.Combine(dir, "ui.json");
+try
+{
+    Directory.CreateDirectory(dir);
+    UiSettings.SaveTheme("Dark");
+    UiSettings.SaveEd2k(fresh.OwnedCommand, fresh.Previous);
+    UiSettings.SaveDensity("Compact");
+    var loadedEd2k = UiSettings.LoadEd2k();
+    Check(UiSettings.LoadTheme() == "Dark" && UiSettings.LoadDensity() == "Compact" && loadedEd2k.OwnedCommand == fresh.OwnedCommand && loadedEd2k.Previous is { Exists: false },
+        "ed2k memory shares the settings file");
+}
+finally
+{
+    UiSettings.FilePathOverride = null;
+    if (Directory.Exists(dir)) Directory.Delete(dir, true);
+}
+
 if (failed > 0)
 {
     Console.Error.WriteLine("RESULT: " + failed + " layout checks failed.");

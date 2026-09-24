@@ -1,5 +1,9 @@
 # Estado al 23/09/2026 — 0.9.2-dev
 
+## Asociación ed2k
+
+En Ajustes, «Abrir enlaces ed2k://» registra el esquema para el usuario y guarda el programa anterior. «Quitar asociación» lo restaura, o borra la clave si no había ninguna. Si otro programa ya es el predeterminado de Windows, no se cambia esa elección. En macOS el `.app` declara el esquema y la misma acción usa Launch Services.
+
 ## Columnas y densidad
 
 Descargas, Buscar, Servidores y Compartidos guardan ancho, orden y visibilidad en `ui.json` (la misma ficha que el tema). La primera columna de cada tabla no se oculta. Un ancho inválido no sustituye el valor de la ventana. La densidad cómoda (44 px) o compacta (36 px) vale para todas las tablas. Guardar el tema no borra el diseño de columnas.
@@ -23,7 +27,7 @@ Repositorio: C:\Users\Edu\source\amule-modern. C# / Avalonia 12.1.2, SDK local .
 
 ## Pendiente para 1.0
 
-Ver README: panel de detalle, asociación `ed2k://`, cierre siempre ordenado, sesión larga, categorías, inicio con Windows, checksum formal y firma.
+Ver README: panel de detalle, cierre siempre ordenado, sesión larga, categorías, inicio con Windows, checksum formal y firma.
 
 ## Joplin
 
