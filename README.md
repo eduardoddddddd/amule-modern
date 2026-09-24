@@ -16,12 +16,13 @@
 
 Interfaz de escritorio en C# / Avalonia, con aMule 3.0.1 como proceso independiente y control directo mediante EC. Es la misma aplicación en Windows y en macOS: en Mac el motor es el `amuled` oficial del DMG universal2, no el ejecutable de Windows.
 
-**No es la versión 1.0.** Estado actual: **0.9.2-dev** — usable a diario (una ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores, ZIP portable e instalador por usuario). La X oculta a la bandeja; «Salir y detener» cierra aMule y guarda la lista de servidores.
+**No es la versión 1.0.** Estado al 24/09/2026: **0.9.2-dev**. Sirve para el uso diario: una ventana, tema claro/oscuro, pestañas de búsqueda, importar servidores, detalle de cada descarga, columnas recordadas, asociación opcional de `ed2k://`, ZIP portable e instalador por usuario. La X oculta a la bandeja. «Salir y detener» cierra aMule por EC. Si el proceso muere, el siguiente arranque restaura la lista de servidores y las descargas incompletas.
 
 ## Qué hace hoy
 
-- **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo). La fila seleccionada muestra hash, enlace, prioridad, fuentes y la ruta: Incoming si está completa, o el parcial `NNN.part` y su `.part.met` en tmp.
-- **Servidores:** añadir IPv4 o dominio y puerto, quitar, importar desde archivo (texto o `server.met`) o URL http/https, conectar y desconectar. Muestra estado eD2k y HighID/LowID. Importar no activa la descarga automática de listas al arrancar.
+- **Descargas:** pegar un enlace `ed2k://`, ver la cola real, filtrar, seleccionar varias filas, pausar, reanudar, cancelar incompletas (borra temporales) y quitar completados de la lista (conserva el archivo). La fila seleccionada muestra hash, enlace, prioridad y recuentos de fuentes (transfiriendo, no actuales, A4AF y completas). Puedes copiar el hash, copiar el enlace y abrir la carpeta. La ruta es el nombre en Incoming si está completa; si no, `NNN.part` y su `.part.met` en tmp. El detalle FULL no trae nombres de pares.
+- **Servidores:** añadir IPv4 o dominio y puerto, quitar, importar desde archivo (texto o `server.met`) o URL http/https, conectar y desconectar. El aviso de arriba y el de abajo usan el mismo estado eD2k. Si la sesión se cae, aMule reintenta; no conecta solo al arrancar. Importar no activa la descarga automática de listas.
+- **Actividad:** el registro del motor y los mensajes del servidor, en vivo, con copia al portapapeles.
 - **Buscar:** una búsqueda activa en el servidor actual, global eD2k o Kad; cada búsqueda se guarda en una pestaña para volver a ella. Resultados con fuentes, filtro, selección múltiple y descarga a la cola.
 - **Ajustes:** Incoming, tmp, límites de bajada/subida (KiB/s, 0 = ilimitado), Kad y la asociación opcional de `ed2k://`. Activarla recuerda el programa anterior y quitarla lo restaura; no sustituye sola la elección de Windows. Por defecto la biblioteca está en Descargas (`amule-modern/incoming` y `tmp`): `%USERPROFILE%\Downloads` en Windows y `~/Downloads` en macOS. Activar Kad no abre el cortafuegos. Si la subida es muy baja, aMule puede recortar la bajada.
 - **Compartidos:** lista lo que el motor ofrece. Incoming se comparte solo; puedes añadir o quitar carpetas extra.
@@ -35,12 +36,12 @@ Usa **Salir y detener** (barra lateral o menú de la bandeja). La X solo oculta 
 
 Al entrar en Servidores, si la tabla está vacía: **Ejemplo → Importar URL** (`https://upd.emule-security.org/server.met`). La importación guarda nombres del `server.met`. Conectar es un paso aparte: selecciona un servidor y pulsa Conectar.
 
-Hay dos perfiles distintos si mezclas el exe del repo y el instalado:
+La copia de cada día es la instalación por usuario, la del icono del Escritorio y del menú Inicio:
 
-- Instalación: `%LOCALAPPDATA%\AmuleModern\.local\desktop`
-- Checkout: `.local\desktop` del repositorio
+- Programa: `%LOCALAPPDATA%\AmuleModern\AmuleModern.exe`
+- Perfil del motor: `%LOCALAPPDATA%\AmuleModern\.local\desktop`
 
-Usa un solo acceso (el del Escritorio o Inicio). No lances dos `amuled` a la vez.
+`scripts\Install.ps1` sustituye esos binarios y conserva el perfil y las descargas. Arrancar con `Start.ps1` o `Iniciar.cmd` desde el checkout usa otro perfil, `.local\desktop` del repositorio, aunque Incoming y tmp apunten a la misma biblioteca. Un solo acceso. No lances dos `amuled` a la vez.
 
 ## Qué falta para 1.0
 
@@ -115,7 +116,7 @@ Esos directorios (salvo Descargas) están excluidos de Git. El perfil contiene c
 
 ## Validación
 
-`Build.ps1 -Test` en Windows y `./scripts/Build.sh --test` en macOS comprueban el protocolo EC, autenticación, cola, pausa/reanudación, cancelación, servidores (añadir, importar, quitar), límites de ancho de banda (incl. valores altos), import HTTP/archivo acotado, un handshake eD2k controlado en este equipo y el ciclo de búsqueda. `tests/Install.Tests.ps1` y `tests/Uninstall.Tests.ps1` ejercitan el empaquetado seguro. Los perfiles de prueba no escriben en tu carpeta Descargas. El test necesita una interfaz IPv4 privada activa.
+`Build.ps1 -Test` en Windows y `./scripts/Build.sh --test` en macOS comprueban el protocolo EC, autenticación, cola, pausa/reanudación, cancelación, servidores (añadir, importar, quitar), límites de ancho de banda (incl. valores altos), import HTTP/archivo acotado, un handshake eD2k controlado en este equipo y el ciclo de búsqueda. `tests/Layout` comprueba columnas y la asociación ed2k. `tests/GridUi` comprueba que la tabla no guarda el diseño hasta que cambias una columna. `tests/Install.Tests.ps1` y `tests/Uninstall.Tests.ps1` ejercitan el empaquetado seguro. Los perfiles de prueba no escriben en tu carpeta Descargas. El test de integración necesita una interfaz IPv4 privada activa y el `amuled` del sistema.
 
 La búsqueda y una descarga completa se han usado contra un servidor eD2k real. No hay todavía una prueba automatizada de checksum independiente ni de recuperación a mitad de transferencia.
 

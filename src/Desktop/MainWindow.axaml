@@ -32,6 +32,7 @@
             <Border Height="1" Background="{DynamicResource App.Border}" Margin="10,18"/>
             <TextBlock Text="SISTEMA" Classes="section" Margin="12,0,0,8"/>
             <Button x:Name="NavSettings" Classes="nav" Content="Ajustes" Click="NavSettingsClicked" IsEnabled="False"/>
+            <Button x:Name="NavLog" Classes="nav" Content="Actividad" Click="NavLogClicked" IsEnabled="False"/>
             <Button Classes="nav" Content="Abrir Incoming" Click="OpenDownloads"/>
             <Button x:Name="QuitButton" Classes="nav" Content="Salir y detener" Click="QuitClicked"
                     ToolTip.Tip="Cierra la aplicación y detiene el motor"/>
