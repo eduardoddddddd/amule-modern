@@ -77,7 +77,7 @@ public partial class SettingsWindow : UserControl
             bool enabled = await engine.Client.GetKadEnabledAsync();
             var network = await engine.Client.GetNetworkStateAsync();
             KadStatus.Text = enabled
-                ? $"Kad {network.KadText.ToLowerInvariant()}. No se modifica el cortafuegos."
+                ? $"Kad activado en ajustes. Red: {network.KadText.ToLowerInvariant()}. No se modifica el cortafuegos."
                 : "Kad está desactivado. Activarlo usa UDP; no se abre el cortafuegos desde esta app.";
             KadEnableButton.IsEnabled = !enabled;
             KadDisableButton.IsEnabled = enabled;

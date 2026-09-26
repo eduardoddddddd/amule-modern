@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using AmuleModern.Amule;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace AmuleModern.Desktop;
 
@@ -22,6 +25,7 @@ public partial class ServersWindow : UserControl
     {
         InitializeComponent();
         ServerGrid.ItemsSource = servers;
+        ServerGrid.AddHandler(PointerPressedEvent, ServerPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
         GridColumns.Attach(ServerGrid, "servers", ["name", "address", "users", "files", "ping"], ColumnsButton);
         UpdateButtons();
     }
@@ -101,11 +105,20 @@ public partial class ServersWindow : UserControl
         {
             added = await client.AddServerAsync(AddressInput.Text ?? "", PortInput.Text ?? "", NameInput.Text ?? "");
             if (connect) { await client.ConnectServerAsync(added); requestedEndpoint = added.Endpoint; }
-        }, connect ? "Conexión solicitada. Esperando confirmación del servidor…" : "Servidor guardado. Selecciónalo para conectar.");
+        }, connect ? "Conexión solicitada. Esperando confirmación del servidor…" : "Servidor guardado. Doble clic o el botón Conectar.");
         if (added != null) ServerGrid.SelectedItem = servers.FirstOrDefault(s => s.Endpoint == added.Endpoint);
     }
     private async void AddOnly(object? sender, RoutedEventArgs e) => await AddAsync(false);
     private async void AddAndConnect(object? sender, RoutedEventArgs e) => await AddAsync(true);
+    private void ServerPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.ClickCount != 2 || !e.GetCurrentPoint(ServerGrid).Properties.IsLeftButtonPressed) return;
+        if ((e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true) is not { DataContext: ServerItem item }) return;
+        ServerGrid.SelectedItem = item;
+        UpdateButtons();
+        if (!ConnectButton.IsEnabled) return;
+        ConnectSelected(sender, new RoutedEventArgs());
+    }
     private async void ConnectSelected(object? sender, RoutedEventArgs e)
     {
         if (ServerGrid.SelectedItem is ServerItem selected)

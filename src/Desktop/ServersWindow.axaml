@@ -4,7 +4,7 @@
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Spacing="4">
         <TextBlock Text="Servidores" FontSize="26" FontWeight="SemiBold"/>
-        <TextBlock Text="Añade o importa servidores eD2k. Conectar es una acción aparte." Classes="muted" FontSize="13"/>
+        <TextBlock Text="Añade o importa servidores eD2k. Doble clic en uno de la lista para conectar." Classes="muted" FontSize="13"/>
       </StackPanel>
       <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top">
         <TextBlock x:Name="NetworkBadge" Text="Consultando…" Classes="accent" FontSize="12"/>

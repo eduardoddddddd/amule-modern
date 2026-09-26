@@ -427,6 +427,20 @@ if (args.Contains("--integration"))
         Check(!restarted.ExtraSharedDirectories().Any(d => UserFolders.PathsEqual(d, extraDir)), "removed extra share does not return after restart");
         Check(File.Exists(Path.Combine(restarted.ProfilePath, "Temp", "001.part.met")), "Windows temporary files use the intended profile directory");
         Check(UserFolders.IsUnder(restarted.IncomingPath, restarted.ProfilePath) && UserFolders.IsUnder(restarted.TempPath, restarted.ProfilePath), "isolated profiles do not use the user Downloads library");
+        await restarted.Client.SetKadEnabledAsync(true);
+    }
+    await using (var resumed = new EngineSession())
+    {
+        await resumed.StartAsync(root, profile);
+        NetworkState? kad = null;
+        for (int i = 0; i < 20; i++)
+        {
+            kad = await resumed.Client.GetNetworkStateAsync();
+            if (kad.KadRunning || kad.KadConnected) break;
+            await Task.Delay(100);
+        }
+        Check(await resumed.Client.GetKadEnabledAsync() && kad is { KadRunning: true } or { KadConnected: true }, "restart starts Kad when the preference stays enabled");
+        Check(!kad!.Connected && !kad.Connecting, "resuming Kad does not autoconnect eD2k");
     }
     Console.WriteLine("NOTE: controlled same-host LAN eD2k handshake verified. No public server or file payload tested in this suite.");
 }

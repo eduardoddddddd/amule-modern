@@ -140,7 +140,7 @@ public sealed class EngineSession : IAsyncDisposable
             token.ThrowIfCancellationRequested();
             if (process.HasExited) throw new IOException($"amuled terminó ({process.ExitCode}). Revisa el logfile del perfil.");
             Client.Dispose(); Client = new EcClient();
-            try { await Client.ConnectAsync(Port, hash, token); await Client.EnableEd2kAsync(token); await RestoreSnapshotsAsync(token); StartSnapshotTimer(); InstallShutdownHook(); return; }
+            try { await Client.ConnectAsync(Port, hash, token); await Client.EnableEd2kAsync(token); await Client.ResumeKadAsync(token); await RestoreSnapshotsAsync(token); StartSnapshotTimer(); InstallShutdownHook(); return; }
             catch (SocketException) { await Task.Delay(200, token); }
             catch (OperationCanceledException) when (!token.IsCancellationRequested) { await Task.Delay(200, token); }
         }

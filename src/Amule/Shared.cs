@@ -54,4 +54,10 @@ public sealed partial class EcClient
         if (enabled) await RequestAsync(new(0x48), token);
         else await RequestAsync(new(0x49), token);
     }
+    public async Task ResumeKadAsync(CancellationToken token = default)
+    {
+        // amuled starts Kad only from the autoconnect path. This app keeps
+        // autoconnect off, so an enabled preference must be started explicitly.
+        if (await GetKadEnabledAsync(token)) await RequestAsync(new(0x48), token);
+    }
 }
