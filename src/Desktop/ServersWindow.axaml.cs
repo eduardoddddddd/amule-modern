@@ -14,7 +14,7 @@ public partial class ServersWindow : UserControl
 {
     private readonly Func<EcClient> clientSource = null!;
     private EcClient client => clientSource();
-    private readonly ObservableCollection<ServerItem> servers = [];
+    private readonly ObservableCollection<ServerRow> servers = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool busy, available, isClosed;
@@ -55,23 +55,18 @@ public partial class ServersWindow : UserControl
         AddOnlyButton.IsEnabled = RefreshServersButton.IsEnabled = ImportFileButton.IsEnabled =
             ImportUrlButton.IsEnabled = ExampleUrlButton.IsEnabled = available && !busy;
         AddConnectButton.IsEnabled = available && !busy && state?.Connecting != true;
-        ConnectButton.IsEnabled = available && !busy && state?.Connecting != true && ServerGrid.SelectedItem is ServerItem;
-        RemoveButton.IsEnabled = available && !busy && ServerGrid.SelectedItem is ServerItem;
+        ConnectButton.IsEnabled = available && !busy && state?.Connecting != true && ServerGrid.SelectedItem is ServerRow;
+        RemoveButton.IsEnabled = available && !busy && ServerGrid.SelectedItem is ServerRow;
         DisconnectButton.IsEnabled = available && !busy && state?.Connected == true;
     }
     private async Task RefreshAsync()
     {
         var list = await client.GetServersAsync();
         state = await client.GetNetworkStateAsync();
-        string? selected = (ServerGrid.SelectedItem as ServerItem)?.Endpoint;
-        var endpoints = list.Select(s => s.Endpoint).ToHashSet();
-        for (int i = servers.Count - 1; i >= 0; i--) if (!endpoints.Contains(servers[i].Endpoint)) servers.RemoveAt(i);
-        foreach (var item in list)
-        {
-            int index = -1; for (int i = 0; i < servers.Count; i++) if (servers[i].Endpoint == item.Endpoint) { index = i; break; }
-            if (index < 0) servers.Add(item); else if (servers[index] != item) servers[index] = item;
-        }
-        ServerGrid.SelectedItem = servers.FirstOrDefault(s => s.Endpoint == selected);
+        string? selected = (ServerGrid.SelectedItem as ServerRow)?.Endpoint;
+        StableRows.Sync(servers, list, row => row.Endpoint, item => item.Endpoint, item => new ServerRow(item), (row, item) => row.Apply(item));
+        var match = servers.FirstOrDefault(s => s.Endpoint == selected);
+        if (!ReferenceEquals(ServerGrid.SelectedItem, match)) ServerGrid.SelectedItem = match;
         EmptyServers.IsVisible = servers.Count == 0;
         NetworkBadge.Text = state.Ed2kText;
         CurrentServer.Text = state.Connected && state.Server is { } current
@@ -113,7 +108,7 @@ public partial class ServersWindow : UserControl
     private void ServerPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.ClickCount != 2 || !e.GetCurrentPoint(ServerGrid).Properties.IsLeftButtonPressed) return;
-        if ((e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true) is not { DataContext: ServerItem item }) return;
+        if ((e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true) is not { DataContext: ServerRow item }) return;
         ServerGrid.SelectedItem = item;
         UpdateButtons();
         if (!ConnectButton.IsEnabled) return;
@@ -121,19 +116,19 @@ public partial class ServersWindow : UserControl
     }
     private async void ConnectSelected(object? sender, RoutedEventArgs e)
     {
-        if (ServerGrid.SelectedItem is ServerItem selected)
-            await ExecuteAsync(async () => { await client.ConnectServerAsync(selected); requestedEndpoint = selected.Endpoint; }, "Conexión solicitada. Esperando confirmación del servidor…");
+        if (ServerGrid.SelectedItem is ServerRow selected)
+            await ExecuteAsync(async () => { await client.ConnectServerAsync(selected.Model); requestedEndpoint = selected.Endpoint; }, "Conexión solicitada. Esperando confirmación del servidor…");
     }
     private async void Disconnect(object? sender, RoutedEventArgs e) => await ExecuteAsync(async () => { await client.DisconnectServerAsync(); }, "Desconexión solicitada al motor.");
     private async void RemoveSelected(object? sender, RoutedEventArgs e)
     {
-        if (ServerGrid.SelectedItem is not ServerItem selected) return;
+        if (ServerGrid.SelectedItem is not ServerRow selected) return;
         var confirm = new ConfirmWindow("Quitar servidor",
             $"Se quitará «{selected.Name}» ({selected.Endpoint}) de la lista del perfil. No se borra nada en disco.",
             "Quitar");
         await confirm.ShowDialog(UiHost.WindowOf(this));
         if (!confirm.Accepted) return;
-        await ExecuteAsync(async () => await client.RemoveServerAsync(selected), "Servidor quitado de la lista.");
+        await ExecuteAsync(async () => await client.RemoveServerAsync(selected.Model), "Servidor quitado de la lista.");
     }
     private async void ImportFile(object? sender, RoutedEventArgs e)
     {

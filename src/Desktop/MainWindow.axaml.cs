@@ -16,7 +16,7 @@ namespace AmuleModern.Desktop;
 
 public partial class MainWindow : Window
 {
-    private readonly ObservableCollection<DownloadItem> rows = [];
+    private readonly ObservableCollection<DownloadRow> rows = [];
     private IReadOnlyList<DownloadItem> snapshot = [];
     private readonly Dictionary<string, double> averageSpeed = new(StringComparer.Ordinal);
     private readonly EngineSession engine = new();
@@ -392,7 +392,7 @@ public partial class MainWindow : Window
     {
         if (!e.GetCurrentPoint(DownloadsGrid).Properties.IsRightButtonPressed) return;
         var row = (e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true);
-        if (row?.DataContext is DownloadItem item && !DownloadsGrid.SelectedItems.Contains(item))
+        if (row?.DataContext is DownloadRow item && !DownloadsGrid.SelectedItems.Contains(item))
             DownloadsGrid.SelectedItem = item;
     }
 
@@ -414,13 +414,7 @@ public partial class MainWindow : Window
         if (FilterInput == null) return;
         var selected = SelectedDownloads().Select(d => d.Hash).ToHashSet();
         var filtered = snapshot.Where(d => d.Name.Contains(FilterInput.Text ?? "", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var valid = filtered.Select(d => d.Hash).ToHashSet();
-        for (int i = rows.Count - 1; i >= 0; i--) if (!valid.Contains(rows[i].Hash)) rows.RemoveAt(i);
-        foreach (var item in filtered)
-        {
-            int index = -1; for (int i = 0; i < rows.Count; i++) if (rows[i].Hash == item.Hash) { index = i; break; }
-            if (index < 0) rows.Add(item); else if (rows[index] != item) rows[index] = item;
-        }
+        StableRows.Sync(rows, filtered, row => row.Hash, item => item.Hash, item => new DownloadRow(item), (row, item) => row.Apply(item));
         var keep = rows.Where(d => selected.Contains(d.Hash)).ToArray();
         var now = SelectedDownloads();
         if (now.Length != keep.Length || now.Any(d => !selected.Contains(d.Hash)))
@@ -433,7 +427,7 @@ public partial class MainWindow : Window
         UpdateActionButtons();
     }
 
-    private DownloadItem[] SelectedDownloads() => DownloadsGrid.SelectedItems.Cast<DownloadItem>().ToArray();
+    private DownloadRow[] SelectedDownloads() => DownloadsGrid.SelectedItems.Cast<DownloadRow>().ToArray();
     private void FilterChanged(object? sender, TextChangedEventArgs e) => ApplyFilter();
     private void SelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateActionButtons();
 
@@ -446,11 +440,16 @@ public partial class MainWindow : Window
         ResumeButton.IsEnabled = active && selected.Any(d => d.CanCancel && d.State == 7);
         CancelButton.IsEnabled = active && selected.Any(d => d.CanCancel);
         ClearButton.IsEnabled = active && selected.Any(d => d.IsComplete && d.EcId != 0);
-        ShowDetail(DownloadsGrid.SelectedItem as DownloadItem);
+        ShowDetail(DownloadsGrid.SelectedItem as DownloadRow);
     }
 
-    private void ShowDetail(DownloadItem? item)
+    private DownloadItem? shownDetail;
+
+    private void ShowDetail(DownloadRow? row)
     {
+        var item = row?.Model;
+        if (item == shownDetail) return;
+        shownDetail = item;
         detailFolder = null;
         detailLink = null;
         bool show = item != null;
@@ -483,7 +482,7 @@ public partial class MainWindow : Window
 
     private async void CopyHash(object? sender, RoutedEventArgs e)
     {
-        if (DownloadsGrid.SelectedItem is not DownloadItem item) return;
+        if (DownloadsGrid.SelectedItem is not DownloadRow item) return;
         await CopyTextAsync(item.Hash, "Hash copiado.");
     }
 

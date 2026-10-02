@@ -12,7 +12,7 @@ namespace AmuleModern.Desktop;
 public partial class SharedWindow : UserControl
 {
     private readonly EngineSession engine = null!;
-    private readonly ObservableCollection<SharedFile> rows = [];
+    private readonly ObservableCollection<SharedRow> rows = [];
     private IReadOnlyList<SharedFile> snapshot = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(4) };
@@ -48,7 +48,7 @@ public partial class SharedWindow : UserControl
     {
         if (AddFolderButton == null) return;
         AddFolderButton.IsEnabled = ReloadButton.IsEnabled = available && !busy;
-        bool selected = SharedGrid.SelectedItem is SharedFile;
+        bool selected = SharedGrid.SelectedItem is SharedRow;
         CopyLinkButton.IsEnabled = selected && available && !busy;
         OpenFolderButton.IsEnabled = selected && available && !busy;
         RemoveFolderButton.IsEnabled = available && !busy && ExtraFoldersInput.SelectedItem is string;
@@ -82,16 +82,14 @@ public partial class SharedWindow : UserControl
     private void ApplyFilter()
     {
         if (FilterInput == null) return;
-        string? selected = (SharedGrid.SelectedItem as SharedFile)?.Hash;
+        string? selected = (SharedGrid.SelectedItem as SharedRow)?.Hash;
         var filtered = snapshot.Where(f => f.Name.Contains(FilterInput.Text ?? "", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var hashes = filtered.Select(f => f.Hash).ToHashSet();
-        for (int i = rows.Count - 1; i >= 0; i--) if (!hashes.Contains(rows[i].Hash)) rows.RemoveAt(i);
-        foreach (var item in filtered)
+        StableRows.Sync(rows, filtered, row => row.Hash, item => item.Hash, item => new SharedRow(item), (row, item) => row.Apply(item));
+        if (selected != null)
         {
-            int index = -1; for (int i = 0; i < rows.Count; i++) if (rows[i].Hash == item.Hash) { index = i; break; }
-            if (index < 0) rows.Add(item); else if (rows[index] != item) rows[index] = item;
+            var match = rows.FirstOrDefault(r => r.Hash == selected);
+            if (!ReferenceEquals(SharedGrid.SelectedItem, match)) SharedGrid.SelectedItem = match;
         }
-        if (selected != null) SharedGrid.SelectedItem = rows.FirstOrDefault(r => r.Hash == selected);
         EmptyShared.IsVisible = rows.Count == 0;
         UpdateButtons();
     }
@@ -128,7 +126,7 @@ public partial class SharedWindow : UserControl
     }
     private async void CopyLink(object? sender, RoutedEventArgs e)
     {
-        if (SharedGrid.SelectedItem is not SharedFile file) return;
+        if (SharedGrid.SelectedItem is not SharedRow file) return;
         string link = file.Ed2kLink;
         if (string.IsNullOrWhiteSpace(link))
             link = $"ed2k://|file|{Uri.EscapeDataString(file.Name)}|{file.Size}|{file.Hash}|/";
@@ -138,7 +136,7 @@ public partial class SharedWindow : UserControl
     }
     private void OpenFolder(object? sender, RoutedEventArgs e)
     {
-        if (SharedGrid.SelectedItem is not SharedFile file) return;
+        if (SharedGrid.SelectedItem is not SharedRow file) return;
         OpenPath(file.FolderText == "—" ? engine.IncomingPath : file.FolderText);
     }
     private void OpenIncoming(object? sender, RoutedEventArgs e) => OpenPath(engine.IncomingPath);

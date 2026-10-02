@@ -14,7 +14,7 @@ public partial class SearchWindow : UserControl
     private const int MaxTabs = 12;
     private readonly Func<EcClient> clientSource = null!;
     private EcClient client => clientSource();
-    private readonly ObservableCollection<SearchResult> rows = [];
+    private readonly ObservableCollection<SearchRow> rows = [];
     private readonly List<SearchTab> tabs = [];
     private SearchTab? current;
     private IReadOnlyList<SearchResult> snapshot = [];
@@ -106,6 +106,8 @@ public partial class SearchWindow : UserControl
         RebuildTabBar();
     }
 
+    private string tabBarSignature = "";
+
     private void UpdateNetworkState(NetworkState network)
     {
         connected = network.Connected; kadConnected = network.KadConnected;
@@ -122,18 +124,11 @@ public partial class SearchWindow : UserControl
     private void ApplyFilter()
     {
         if (FilterInput == null) return;
-        var selected = ResultsGrid.SelectedItems.Cast<SearchResult>().Select(r => r.Hash).ToHashSet();
+        var selected = ResultsGrid.SelectedItems.Cast<SearchRow>().Select(r => r.Hash).ToHashSet();
         string filter = FilterInput.Text ?? "";
         if (current != null) current.Filter = filter;
         var filtered = snapshot.Where(r => r.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray();
-        var hashes = filtered.Select(r => r.Hash).ToHashSet();
-        for (int i = rows.Count - 1; i >= 0; i--) if (!hashes.Contains(rows[i].Hash)) rows.RemoveAt(i);
-        foreach (var result in filtered)
-        {
-            var previous = rows.FirstOrDefault(r => r.Hash == result.Hash);
-            if (previous == null) rows.Add(result);
-            else if (previous != result) rows[rows.IndexOf(previous)] = result;
-        }
+        StableRows.Sync(rows, filtered, row => row.Hash, result => result.Hash, result => new SearchRow(result), (row, result) => row.Apply(result));
         foreach (var row in rows.Where(r => selected.Contains(r.Hash))) if (!ResultsGrid.SelectedItems.Contains(row)) ResultsGrid.SelectedItems.Add(row);
         string tabHint = current == null ? "" : current.IsLive ? (current.Searching ? " · en curso" : " · activa") : " · guardada";
         ResultCount.Text = $"{rows.Count} RESULTADOS · {snapshot.Count} recibidos{tabHint}";
@@ -149,6 +144,9 @@ public partial class SearchWindow : UserControl
     private void RebuildTabBar()
     {
         if (TabBar == null) return;
+        string signature = string.Join("\n", tabs.Select(tab => (ReferenceEquals(tab, current) ? "*" : "") + tab.Title + "\t" + tab.ScopeLabel));
+        if (signature == tabBarSignature && TabBar.Children.Count == tabs.Count) return;
+        tabBarSignature = signature;
         TabBar.Children.Clear();
         foreach (var tab in tabs)
         {
@@ -297,7 +295,7 @@ public partial class SearchWindow : UserControl
 
     private async void DownloadClicked(object? sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
-        var selected = ResultsGrid.SelectedItems.Cast<SearchResult>().ToArray();
+        var selected = ResultsGrid.SelectedItems.Cast<SearchRow>().ToArray();
         int count = 0;
         bool live = current is { IsLive: true };
         foreach (var result in selected)
@@ -305,7 +303,7 @@ public partial class SearchWindow : UserControl
             if (live)
                 await client.DownloadSearchResultAsync(result.Hash);
             else
-                await client.AddLinkAsync(Ed2kLink(result));
+                await client.AddLinkAsync(Ed2kLink(result.Model));
             count++;
             StatusMessage.Text = $"{count} archivo(s) confirmados en la cola de descargas.";
         }
